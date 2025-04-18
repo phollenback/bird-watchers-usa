@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Bird Search')}">
+    <meta charset="UTF-8">
+    <title>Bird Search</title>
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav th:replace="~{fragments/layout :: nav}"></nav>
+
+    <div class="container-fluid py-4">
+        <div class="row justify-content-center mb-4">
+            <div class="col-12 col-md-10">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h4 class="text-center mb-4">Search Birds</h4>
+                        <form method="get" action="/birds/search" class="text-center">
+                            <div class="input-group">
+                                <input type="text" 
+                                       name="query" 
+                                       th:value="${query}" 
+                                       class="form-control" 
+                                       placeholder="Search birds...">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search me-1"></i>
+                                    Search
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results table -->
+        <div class="row justify-content-center">
+            <div class="col-12">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Kind</th>
+                                <th>Color</th>
+                                <th>Age</th>
+                                <th>Fun Fact</th>
+                                <th>Image</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${birds.empty}">
+                                <td colspan="7" class="text-center">No birds found</td>
+                            </tr>
+                            <tr th:each="bird : ${birds}">
+                                <td th:text="${bird.id}">1</td>
+                                <td th:text="${bird.name}">Bird Name</td>
+                                <td th:text="${bird.kind}">Bird Kind</td>
+                                <td th:text="${bird.color}">Color</td>
+                                <td th:text="${bird.age}">Age</td>
+                                <td th:text="${bird.funFact}">Fun fact about the bird</td>
+                                <td>
+                                    <img th:if="${bird.imageUrl}" 
+                                         th:src="${bird.imageUrl}" 
+                                         th:alt="'Photo of ' + ${bird.name}" 
+                                         th:title="'Photo of ' + ${bird.name}"
+                                         title="Photo of ${bird.name}"
+                                         class="table-thumbnail" 
+                                         aria-describedby="bird-name">
+                                    <span th:unless="${bird.imageUrl}" class="text-muted">No image</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>
