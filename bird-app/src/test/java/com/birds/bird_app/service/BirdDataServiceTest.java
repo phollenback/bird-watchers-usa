@@ -1,147 +1,116 @@
 package com.birds.bird_app.service;
 
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import static org.mockito.ArgumentMatchers.any;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
+import org.springframework.web.multipart.MultipartFile;
 
-import com.birds.bird_app.data.BirdsDAO;
-import com.birds.bird_app.model.BirdModel;
+import com.birds.bird_app.model.BirdEntity;
+import com.birds.bird_app.repository.BirdRepository;
 
-@ExtendWith(MockitoExtension.class)
 class BirdDataServiceTest {
-    
+
     @Mock
-    private BirdsDAO birdsDAO;
-    
-    private BirdDataServiceImpl birdDataService;
-    private BirdModel cardinal;
-    private BirdModel blueJay;
+    private BirdRepository birdRepository;
+
+    @Mock
+    private S3Service s3Service;
+
+    @Mock
+    private ImageVerificationService imageVerificationService;
+
+    @InjectMocks
+    private BirdServiceImpl birdService;
 
     @BeforeEach
     void setUp() {
-        birdDataService = new BirdDataServiceImpl();
-        birdDataService.setBirdsDAO(birdsDAO);
-        
-        cardinal = new BirdModel("Cardinal", "Northern Cardinal", "Red", 3, "State bird of seven states", "https://example.com/cardinal.jpg");
-        cardinal.setId(1L);
-        
-        blueJay = new BirdModel("Blue Jay", "Blue Jay", "Blue", 2, "Known for intelligence", "https://example.com/bluejay.jpg");
-        blueJay.setId(2L);
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    void getAllBirds_ShouldReturnAllBirds() {
-        // Given
-        when(birdsDAO.findAll()).thenReturn(Arrays.asList(cardinal, blueJay));
+    void testGetAllBirds() {
+        List<BirdEntity> expectedBirds = Arrays.asList(
+            new BirdEntity("Bird1", "Kind1", "Color1", 1, "Fun1", "url1"),
+            new BirdEntity("Bird2", "Kind2", "Color2", 2, "Fun2", "url2")
+        );
+        when(birdRepository.findAll()).thenReturn(expectedBirds);
 
-        // When
-        List<BirdModel> birds = birdDataService.getAllBirds();
-
-        // Then
-        assertNotNull(birds);
-        assertEquals(2, birds.size());
-        assertTrue(birds.stream().anyMatch(bird -> "Cardinal".equals(bird.getName())));
-        assertTrue(birds.stream().anyMatch(bird -> "Blue Jay".equals(bird.getName())));
+        List<BirdEntity> actualBirds = birdService.getAllBirds();
+        assertEquals(expectedBirds, actualBirds);
+        verify(birdRepository).findAll();
     }
 
     @Test
-    void getBirdById_WithValidId_ShouldReturnBird() {
-        // Given
-        when(birdsDAO.findById(1L)).thenReturn(Optional.of(cardinal));
+    void testGetBirdById() {
+        BirdEntity expectedBird = new BirdEntity("Bird1", "Kind1", "Color1", 1, "Fun1", "url1");
+        when(birdRepository.findById(1L)).thenReturn(Optional.of(expectedBird));
 
-        // When
-        var bird = birdDataService.getBirdById(1L);
-
-        // Then
-        assertTrue(bird.isPresent());
-        assertEquals("Cardinal", bird.get().getName());
+        Optional<BirdEntity> actualBird = birdService.getBirdById(1L);
+        assertTrue(actualBird.isPresent());
+        assertEquals(expectedBird, actualBird.get());
+        verify(birdRepository).findById(1L);
     }
 
     @Test
-    void getBirdById_WithInvalidId_ShouldReturnEmpty() {
-        // Given
-        when(birdsDAO.findById(999L)).thenReturn(Optional.empty());
+    void testCreateBird() throws Exception {
+        BirdEntity bird = new BirdEntity("Bird1", "Kind1", "Color1", 1, "Fun1", null);
+        MultipartFile image = mock(MultipartFile.class);
+        when(image.isEmpty()).thenReturn(false);
+        when(imageVerificationService.isBirdImage(image)).thenReturn(true);
+        when(s3Service.uploadFile(image)).thenReturn("http://s3.url/image.jpg");
+        when(birdRepository.save(any(BirdEntity.class))).thenReturn(bird);
 
-        // When
-        var bird = birdDataService.getBirdById(999L);
-
-        // Then
-        assertTrue(bird.isEmpty());
+        BirdEntity createdBird = birdService.createBird(bird, image);
+        assertNotNull(createdBird);
+        assertEquals("http://s3.url/image.jpg", createdBird.getImageUrl());
+        verify(s3Service).uploadFile(image);
+        verify(birdRepository).save(bird);
     }
 
     @Test
-    void createBird_ShouldAddNewBird() {
-        // Given
-        BirdModel newBird = new BirdModel("Owl", "Great Horned Owl", "Brown", 5, "Can rotate head 270 degrees", "https://example.com/owl.jpg");
-        when(birdsDAO.save(any(BirdModel.class))).thenReturn(newBird);
+    void testUpdateBird() {
+        BirdEntity existingBird = new BirdEntity("OldBird", "OldKind", "OldColor", 1, "OldFun", "oldUrl");
+        BirdEntity updatedBird = new BirdEntity("NewBird", "NewKind", "NewColor", 2, "NewFun", "newUrl");
+        when(birdRepository.findById(1L)).thenReturn(Optional.of(existingBird));
+        when(birdRepository.save(any(BirdEntity.class))).thenReturn(updatedBird);
 
-        // When
-        BirdModel created = birdDataService.createBird(newBird);
-
-        // Then
-        assertEquals("Owl", created.getName());
-    }
-
-    @Test
-    void updateBird_WithValidId_ShouldUpdateBird() {
-        // Given
-        BirdModel updatedBird = new BirdModel("Cardinal Updated", "Northern Cardinal", "Red", 4, "Updated fact", "https://example.com/cardinal.jpg");
-        when(birdsDAO.update(any(BirdModel.class))).thenReturn(true);
-
-        // When
-        var result = birdDataService.updateBird(1L, updatedBird);
-
-        // Then
+        Optional<BirdEntity> result = birdService.updateBird(1L, updatedBird);
         assertTrue(result.isPresent());
-        assertEquals("Cardinal Updated", result.get().getName());
+        assertEquals(updatedBird.getName(), result.get().getName());
+        assertEquals(updatedBird.getKind(), result.get().getKind());
+        verify(birdRepository).findById(1L);
+        verify(birdRepository).save(any(BirdEntity.class));
     }
 
     @Test
-    void updateBird_WithInvalidId_ShouldReturnEmpty() {
-        // Given
-        when(birdsDAO.update(any(BirdModel.class))).thenReturn(false);
-        BirdModel updatedBird = new BirdModel("Invalid", "Test", "Red", 1, "Test", "https://example.com/test.jpg");
-
-        // When
-        var result = birdDataService.updateBird(999L, updatedBird);
-
-        // Then
-        assertTrue(result.isEmpty());
+    void testDeleteBird() {
+        when(birdRepository.existsById(1L)).thenReturn(true);
+        boolean result = birdService.deleteBird(1L);
+        assertTrue(result);
+        verify(birdRepository).deleteById(1L);
+        verify(birdRepository).existsById(1L);
     }
 
     @Test
-    void deleteBird_WithValidId_ShouldDeleteBird() {
-        // Given
-        when(birdsDAO.delete(1L)).thenReturn(true);
+    void testSearchBirds() {
+        String query = "test";
+        List<BirdEntity> expectedBirds = Arrays.asList(
+            new BirdEntity("TestBird", "TestKind", "Color1", 1, "Fun1", "url1")
+        );
+        when(birdRepository.findByNameContainingIgnoreCaseOrKindContainingIgnoreCase(query, query))
+            .thenReturn(expectedBirds);
 
-        // When
-        boolean deleted = birdDataService.deleteBird(1L);
-
-        // Then
-        assertTrue(deleted);
-    }
-
-    @Test
-    void deleteBird_WithInvalidId_ShouldReturnFalse() {
-        // Given
-        when(birdsDAO.delete(999L)).thenReturn(false);
-
-        // When
-        boolean deleted = birdDataService.deleteBird(999L);
-
-        // Then
-        assertFalse(deleted);
+        List<BirdEntity> actualBirds = birdService.searchBirds(query);
+        assertEquals(expectedBirds, actualBirds);
+        verify(birdRepository).findByNameContainingIgnoreCaseOrKindContainingIgnoreCase(query, query);
     }
 } 

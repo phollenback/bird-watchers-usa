@@ -10,23 +10,24 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
-public class BucketConfig {
- 
-    @Value("${aws.accessKey}")
+public class AmazonClient {
+    
+    @Value("${cloud.aws.accessKey}")
     private String accessKey;
- 
-    @Value("${aws.secretKey}")
+
+    @Value("${cloud.aws.secretKey}")
     private String secretKey;
- 
-    @Value("${aws.region}")
-    private String region;
- 
+    
+    @Value("${cloud.aws.bucketName}")
+    private String bucketName;
+
     @Bean
     public S3Client s3Client() {
-        AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+        AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKey, secretKey);
+        
         return S3Client.builder()
-                .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                .build();
+            .region(Region.US_WEST_2) // Change this to your region
+            .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
+            .build();
     }
 }

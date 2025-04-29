@@ -1,18 +1,13 @@
 package com.birds.bird_app.controller;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import com.birds.bird_app.model.BirdModel;
+import com.birds.bird_app.model.BirdEntity;
 import com.birds.bird_app.service.BirdService;
 
 @RestController
@@ -26,24 +21,32 @@ public class BirdRestController {
     }
 
     @GetMapping
-    public List<BirdModel> getAllBirds() {
+    public List<BirdEntity> getAllBirds() {
         return birdService.getAllBirds();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BirdModel> getBirdById(@PathVariable Long id) {
+    public ResponseEntity<BirdEntity> getBirdById(@PathVariable Long id) {
         return birdService.getBirdById(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public BirdModel createBird(@RequestBody BirdModel bird) {
-        return birdService.createBird(bird);
+    public ResponseEntity<BirdEntity> createBird(
+        @RequestPart("bird") BirdEntity bird,
+        @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        try {
+            BirdEntity createdBird = birdService.createBird(bird, image);
+            return ResponseEntity.ok(createdBird);
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BirdModel> updateBird(@PathVariable Long id, @RequestBody BirdModel bird) {
+    public ResponseEntity<BirdEntity> updateBird(@PathVariable Long id, @RequestBody BirdEntity bird) {
         return birdService.updateBird(id, bird)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
@@ -51,8 +54,9 @@ public class BirdRestController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBird(@PathVariable Long id) {
-            return birdService.deleteBird(id)
-            ? ResponseEntity.ok().build()
-            : ResponseEntity.notFound().build();
+        if (birdService.deleteBird(id)) {
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 }

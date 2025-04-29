@@ -10,7 +10,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
 
+@Data
 @Entity
 @Table(name = "birds")
 public class BirdEntity {
@@ -20,26 +23,30 @@ public class BirdEntity {
     private Long id;
 
     @NotBlank(message = "Name is required")
+    @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
     @Column(nullable = false)
     private String name;
 
     @NotBlank(message = "Kind is required")
+    @Size(min = 2, max = 100, message = "Kind must be between 2 and 100 characters")
     @Column(nullable = false)
     private String kind;
 
     @NotBlank(message = "Color is required")
+    @Size(min = 2, max = 50, message = "Color must be between 2 and 50 characters")
     @Column(nullable = false)
     private String color;
 
-    @Min(value = 0, message = "Age must be at least 0")
+    @Min(value = 0, message = "Age must be a positive number")
     @Column(nullable = false)
-    private int age;
+    private Integer age;
 
+    @Size(max = 500, message = "Fun fact must be less than 500 characters")
     @Column(columnDefinition = "TEXT")
     private String funFact;
 
     @URL(message = "Image URL must be a valid URL")
-    @Column(name = "image_url")
+    @Column(name = "image_url", length = 1000)
     private String imageUrl;
 
     // Default constructor
@@ -47,7 +54,7 @@ public class BirdEntity {
     }
 
     // Constructor with fields
-    public BirdEntity(String name, String kind, String color, int age, String funFact, String imageUrl) {
+    public BirdEntity(String name, String kind, String color, Integer age, String funFact, String imageUrl) {
         this.name = name;
         this.kind = kind;
         this.color = color;
@@ -89,11 +96,11 @@ public class BirdEntity {
         this.color = color;
     }
 
-    public int getAge() {
+    public Integer getAge() {
         return age;
     }
 
-    public void setAge(int age) {
+    public void setAge(Integer age) {
         this.age = age;
     }
 

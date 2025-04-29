@@ -38,15 +38,17 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(authorizeRequests ->
                 authorizeRequests
-                    .requestMatchers("/", "/home", "/index", "/users/register", "/users/login", "/users/loginForm", "/error", "/birds/search").permitAll()
-                    .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
-                    .requestMatchers("/api/**").permitAll()  // Allow access to API endpoints
+                    .requestMatchers("/", "/home", "/index", "/users/register", "/users/loginForm", "/error", "/birds/search").permitAll()
+                    .requestMatchers("/css/**", "/js/**", "/images/**", "/uploads/**").permitAll()
+                    .requestMatchers("/api/**").permitAll()
                     .requestMatchers("/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             )
             .formLogin(form -> form
                 .loginPage("/users/loginForm")
                 .loginProcessingUrl("/users/login")
+                .usernameParameter("username")
+                .passwordParameter("password")
                 .successHandler(authenticationSuccessHandler)
                 .failureUrl("/users/loginForm?error=true")
                 .permitAll()
@@ -57,7 +59,7 @@ public class SecurityConfig {
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
                 .permitAll())
-            .csrf(csrf -> csrf.disable());  // Disable CSRF for API endpoints
+            .csrf(csrf -> csrf.disable());
         
         logger.info("Security filter chain configured successfully");
         return http.build();

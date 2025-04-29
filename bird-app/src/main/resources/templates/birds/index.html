@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/layout :: head('Bird App - Birds')}"></head>
+<head th:replace="~{fragments/layout :: head('Bird App - Birds')}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
 <body>
     <nav th:replace="~{fragments/layout :: nav}"></nav>
-
+    <!-- Error Message -->
+    <div th:if="${error}" class="alert alert-warning alert-dismissible fade show mb-3" role="alert" style="max-width: 600px; margin: 0 auto;">
+        <strong>🐦 Bird Alert!</strong>
+        <span th:text="${error}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
     <!-- Main Content -->
     <div class="container py-4">
+
         <div class="row">
             <!-- Bird Gallery -->
             <div class="col-lg-8">

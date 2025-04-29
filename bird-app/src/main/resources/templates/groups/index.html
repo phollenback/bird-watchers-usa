@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Bird App - Groups')}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <nav th:replace="~{fragments/layout :: nav}"></nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">Bird Watching Groups</h2>
+                    <a th:href="@{/groups/new}" class="btn btn-success">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Create New Group
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Filters Sidebar -->
+            <div class="col-lg-3 col-md-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Filters</h5>
+                        <form th:action="@{/groups}" method="get">
+                            <!-- Search Bar -->
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text" name="search" class="form-control" placeholder="Search groups..." th:value="${param.search}">
+                                </div>
+                            </div>
+
+                            <!-- Filter Options -->
+                            <div class="mb-3">
+                                <label class="form-label" for="region">Region</label>
+                                <select id="region" class="form-select" name="region" th:value="${param.region}" aria-label="Filter by region">
+                                    <option value="">All Regions</option>
+                                    <option th:each="region : ${regions}" th:value="${region}" th:text="${region}" th:selected="${param.region == region}">Region</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="visibility">Group Type</label>
+                                <select id="visibility" class="form-select" name="visibility" th:value="${param.visibility}" aria-label="Filter by group type">
+                                    <option value="">All Types</option>
+                                    <option th:each="type : ${visibilityTypes}" th:value="${type}" th:text="${type}" th:selected="${param.visibility == type}">Type</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="difficulty">Difficulty Level</label>
+                                <select id="difficulty" class="form-select" name="difficulty" th:value="${param.difficulty}" aria-label="Filter by difficulty level">
+                                    <option value="">All Levels</option>
+                                    <option th:each="level : ${difficultyLevels}" th:value="${level}" th:text="${level}" th:selected="${param.difficulty == level}">Level</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="preferred_time">Meeting Time</label>
+                                <select id="preferred_time" class="form-select" name="preferred_time" th:value="${param.preferred_time}" aria-label="Filter by meeting time">
+                                    <option value="">Any Time</option>
+                                    <option th:each="time : ${meetingTimes}" th:value="${time}" th:text="${time}" th:selected="${param.preferred_time == time}">Time</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="frequency">Meeting Frequency</label>
+                                <select id="frequency" class="form-select" name="frequency" th:value="${param.frequency}" aria-label="Filter by meeting frequency">
+                                    <option value="">Any Frequency</option>
+                                    <option th:each="freq : ${frequencies}" th:value="${freq}" th:text="${freq}" th:selected="${param.frequency == freq}">Frequency</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="season">Season</label>
+                                <select id="season" class="form-select" name="season" th:value="${param.season}" aria-label="Filter by season">
+                                    <option value="">All Seasons</option>
+                                    <option th:each="season : ${seasons}" th:value="${season}" th:text="${season}" th:selected="${param.season == season}">Season</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="features">Features</label>
+                                <select id="features" class="form-select" name="features" th:value="${param.features}" aria-label="Filter by features">
+                                    <option value="">All Features</option>
+                                    <option th:each="feature : ${featuresList}" th:value="${feature}" th:text="${feature}" th:selected="${param.features == feature}">Feature</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="membership">Membership</label>
+                                <select id="membership" class="form-select" name="membership" th:value="${param.membership}" aria-label="Filter by membership type">
+                                    <option value="">Any Status</option>
+                                    <option th:each="type : ${membershipTypes}" th:value="${type}" th:text="${type}" th:selected="${param.membership == type}">Type</option>
+                                </select>
+                            </div>
+
+                            <!-- Filter Buttons -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-funnel me-1"></i>Apply Filters
+                                </button>
+                                <a th:href="@{/groups}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle me-1"></i>Clear Filters
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Groups Grid -->
+            <div class="col-lg-9 col-md-8">
+                <div class="row g-4">
+                    <div th:each="group : ${groups}" class="col-xl-4 col-lg-6">
+                        <div class="card h-100 shadow-sm hover-shadow">
+                            <div class="position-relative">
+                                <img th:if="${group.settings != null && group.settings.groupImageUrl != null}" 
+                                     th:src="${group.settings.groupImageUrl}" 
+                                     class="card-img-top" 
+                                     th:alt="${group.name}" 
+                                     th:title="${group.name}"
+                                     style="height: 200px; object-fit: cover;"
+                                     title="${group.name}">
+                                <div th:unless="${group.settings != null && group.settings.groupImageUrl != null}" 
+                                     class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                                     style="height: 200px;">
+                                    <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                                </div>
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    <span class="badge bg-primary rounded-pill">
+                                        <i class="bi bi-people-fill me-1"></i>
+                                        <span th:text="${group.memberCount}">0</span> members
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title" th:text="${group.name}">Group Name</h5>
+                                <p class="card-text text-muted mb-2">
+                                    <i class="bi bi-person-circle me-1"></i>
+                                    <span th:text="${group.birdKeeper.name}">Bird Keeper</span>
+                                </p>
+                                <p class="card-text" th:text="${group.description}">Group description goes here...</p>
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0">
+                                <div class="d-grid">
+                                    <a th:href="@{/groups/{id}(id=${group.id})}" class="btn btn-outline-primary">
+                                        <i class="bi bi-eye me-1"></i>View Group
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+
+    <style>
+        .hover-shadow {
+            transition: all 0.3s ease;
+        }
+        .hover-shadow:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        }
+    </style>
+</body>
+</html> 
