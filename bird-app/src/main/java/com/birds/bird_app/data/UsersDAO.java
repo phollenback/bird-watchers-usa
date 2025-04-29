@@ -89,11 +89,12 @@ public class UsersDAO {
         user.setRole(HtmlUtils.htmlEscape(rs.getString("role")));
         user.setPassword(rs.getString("password")); // Don't escape password hash
         user.setEnabled(rs.getBoolean("enabled"));
+        user.setProfilePictureUrl(rs.getString("profile_picture_url"));
         return user;
     }
 
     public void save(UserEntity user) {
-        String sql = "INSERT INTO users (email, name, role, password, enabled) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (email, name, role, password, enabled, profile_picture_url) VALUES (?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = DriverManager.getConnection(url, username, password);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -103,6 +104,7 @@ public class UsersDAO {
             stmt.setString(3, user.getRole());
             stmt.setString(4, user.getPassword());
             stmt.setBoolean(5, user.isEnabled());
+            stmt.setString(6, user.getProfilePictureUrl());
             
             stmt.executeUpdate();
         } catch (SQLException e) {
@@ -111,7 +113,7 @@ public class UsersDAO {
     }
 
     public void update(UserEntity user) {
-        String sql = "UPDATE users SET email = ?, name = ?, role = ?, password = ?, enabled = ? WHERE id = ?";
+        String sql = "UPDATE users SET email = ?, name = ?, role = ?, password = ?, enabled = ?, profile_picture_url = ? WHERE id = ?";
         
         try (Connection conn = DriverManager.getConnection(url, username, password);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -121,7 +123,8 @@ public class UsersDAO {
             stmt.setString(3, user.getRole());
             stmt.setString(4, user.getPassword());
             stmt.setBoolean(5, user.isEnabled());
-            stmt.setLong(6, user.getId());
+            stmt.setString(6, user.getProfilePictureUrl());
+            stmt.setLong(7, user.getId());
             
             stmt.executeUpdate();
         } catch (SQLException e) {

@@ -16,6 +16,9 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 
 @Service
 public class S3Service {
@@ -23,11 +26,18 @@ public class S3Service {
     
     private final S3Client s3Client;
     private final String bucketName;
+    private final String accessKey;
+    private final String secretKey;
 
     @Autowired
-    public S3Service(S3Client s3Client, @Value("${cloud.aws.bucketName}") String bucketName) {
+    public S3Service(S3Client s3Client, 
+                    @Value("${cloud.aws.bucketName}") String bucketName,
+                    @Value("${cloud.aws.accessKey}") String accessKey,
+                    @Value("${cloud.aws.secretKey}") String secretKey) {
         this.s3Client = s3Client;
         this.bucketName = bucketName;
+        this.accessKey = accessKey;
+        this.secretKey = secretKey;
         logger.info("S3Service initialized with bucket: {}", bucketName);
     }
 
@@ -53,7 +63,10 @@ public class S3Service {
 
             // Generate a presigned URL that expires in 7 days
             logger.info("Generating presigned URL for file: {}", fileName);
+            AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKey, secretKey);
             S3Presigner presigner = S3Presigner.builder()
+                .region(Region.US_WEST_2)
+                .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
                 .build();
 
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()

@@ -103,8 +103,8 @@ class BirdRestControllerTest {
         when(birdService.updateBird(eq(1L), any(BirdEntity.class))).thenReturn(Optional.of(testBird));
 
         mockMvc.perform(put("/api/birds/1")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(testBird)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(testBird)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("TestBird"))
             .andExpect(jsonPath("$.kind").value("TestKind"));

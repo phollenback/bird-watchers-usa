@@ -46,6 +46,9 @@ public class UserEntity implements UserDetails {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(name = "profile_picture_url", columnDefinition = "TEXT")
+    private String profilePictureUrl;
+
     public UserEntity() {
     }
 
@@ -130,5 +133,13 @@ public class UserEntity implements UserDetails {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public String getProfilePictureUrl() {
+        return profilePictureUrl;
+    }
+
+    public void setProfilePictureUrl(String profilePictureUrl) {
+        this.profilePictureUrl = profilePictureUrl;
     }
 }

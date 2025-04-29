@@ -44,4 +44,7 @@ public interface GroupRepository extends JpaRepository<GroupEntity, Long> {
     
     @Query("SELECT g FROM GroupEntity g WHERE g.settings.autoApproveMembership = :autoApprove")
     List<GroupEntity> findBySettingsAutoApproveMembership(@Param("autoApprove") boolean autoApprove);
+
+    @Query("SELECT g FROM GroupEntity g WHERE LOWER(g.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    List<GroupEntity> findByNameContainingIgnoreCase(String name);
 }

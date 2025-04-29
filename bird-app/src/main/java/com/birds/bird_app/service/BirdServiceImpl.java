@@ -92,7 +92,7 @@ public class BirdServiceImpl implements BirdService {
         logger.info("Attempting to delete bird with id: {}", id);
         if (birdRepository.existsById(id)) {
             logger.info("Bird found, proceeding with deletion");
-            birdRepository.deleteById(id);
+        birdRepository.deleteById(id);
             return true;
         }
         logger.warn("Bird not found for deletion, id: {}", id);

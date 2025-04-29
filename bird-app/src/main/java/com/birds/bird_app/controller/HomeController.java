@@ -1,5 +1,6 @@
 package com.birds.bird_app.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,22 +12,42 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.birds.bird_app.data.TestimonialDataService;
+import com.birds.bird_app.model.BirdEntity;
 import com.birds.bird_app.model.TestimonialModel;
+import com.birds.bird_app.model.BirdModel;
+import com.birds.bird_app.service.BirdService;
 
 @Controller 
 public class HomeController {
     @Autowired
     private final TestimonialDataService tds;
 
+    @Autowired
+    private final BirdService birdService;
+
     // Single constructor for dependency injection
-    public HomeController(TestimonialDataService testimonialDataService) {
+    public HomeController(TestimonialDataService testimonialDataService, BirdService birdService) {
         this.tds = testimonialDataService;
+        this.birdService = birdService;
     }
 
     @GetMapping("/")
     public String home(Model model) {
         List<TestimonialModel> testimonials = tds.getAllTestimonials();
+        List<BirdEntity> birds = birdService.getAllBirds();
+
+        List<String> colors = new ArrayList<>();
+        List<String> types = new ArrayList<>();
+        for (BirdEntity bird : birds) {
+            colors.add(bird.getColor());
+            types.add(bird.getKind());
+        }
+
         model.addAttribute("testimonials", testimonials);
+        model.addAttribute("birds", birds);
+        model.addAttribute("colors", colors);
+        model.addAttribute("types", types);
+
 
         return "home"; 
     }

@@ -11,8 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class ImageVerificationService {
@@ -21,15 +20,24 @@ public class ImageVerificationService {
     @Value("${GOOGLE_APPLICATION_CREDENTIALS}")
     private String credentialsPath;
 
+    // Basic list of bird-related terms
+    private static final List<String> BIRD_TERMS = List.of(
+        "bird", "avian", "fowl", "feather", "wing", "beak", "tail",
+        "bird of prey", "songbird", "waterfowl", "seabird", "raptor",
+        "owl", "eagle", "hawk", "falcon", "parrot", "penguin", "duck", "goose", "swan",
+        "chicken", "turkey", "pigeon", "dove", "sparrow", "finch", "cardinal", "robin",
+        "blue jay", "woodpecker", "hummingbird", "warbler", "thrush", "wren", "nuthatch",
+        "chickadee", "titmouse", "grosbeak", "tanager", "oriole", "blackbird", "starling",
+        "crow", "raven", "jay", "magpie", "kingfisher", "heron", "egret", "crane", "stork"
+    );
+
     public boolean isBirdImage(MultipartFile file) throws IOException {
         logger.info("Starting image verification for file: {}", file.getOriginalFilename());
         logger.info("File size: {} bytes, Content type: {}", file.getSize(), file.getContentType());
-        logger.info("Using Google Cloud credentials from: {}", credentialsPath);
 
         try {
             // Load credentials from file
             GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(credentialsPath));
-            logger.info("Successfully loaded Google Cloud credentials");
 
             // Create the Vision API client with explicit credentials
             ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
@@ -41,14 +49,16 @@ public class ImageVerificationService {
 
             // Convert the image to bytes
             ByteString imgBytes = ByteString.copyFrom(file.getBytes());
-            logger.info("Successfully converted image to bytes");
 
             // Build the image
             Image img = Image.newBuilder().setContent(imgBytes).build();
-            logger.info("Successfully built image for Vision API");
 
-            // Perform label detection
-            Feature feat = Feature.newBuilder().setType(Feature.Type.LABEL_DETECTION).build();
+            // Perform label detection with maxResults of 30
+            Feature feat = Feature.newBuilder()
+                    .setType(Feature.Type.LABEL_DETECTION)
+                    .setMaxResults(30)
+                    .build();
+
             AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
                     .addFeatures(feat)
                     .setImage(img)
@@ -64,29 +74,43 @@ public class ImageVerificationService {
                 return false;
             }
 
-            // Check if any of the labels are related to birds
-            List<String> birdRelatedTerms = List.of(
-                "bird", "avian", "fowl", "feather", "wing", "beak", "bird of prey",
-                "songbird", "waterfowl", "seabird", "raptor", "owl", "eagle", "hawk",
-                "falcon", "parrot", "penguin", "duck", "goose", "swan", "chicken",
-                "turkey", "pigeon", "dove", "sparrow", "finch", "cardinal", "robin",
-                "blue jay", "woodpecker", "hummingbird"
-            );
+            // Log all labels and check for bird-related terms
+            boolean foundBird = false;
+            logger.info("=== Vision API Label Analysis ===");
+            logger.info("Total labels detected: {}", responses.get(0).getLabelAnnotationsList().size());
+            
+            // Sort labels by score
+            List<EntityAnnotation> sortedLabels = new ArrayList<>(responses.get(0).getLabelAnnotationsList());
+            sortedLabels.sort((a, b) -> Float.compare(b.getScore(), a.getScore()));
 
-            logger.info("Analyzing labels from Vision API response");
-            for (EntityAnnotation annotation : responses.get(0).getLabelAnnotationsList()) {
+            // Log all labels with their confidence scores
+            logger.info("Labels by confidence score:");
+            for (EntityAnnotation annotation : sortedLabels) {
                 String label = annotation.getDescription().toLowerCase();
                 float score = annotation.getScore();
-                logger.info("Found label: {} with confidence: {}", label, score);
+                float confidence = score * 100; // Convert to percentage
                 
-                if (birdRelatedTerms.stream().anyMatch(term -> label.contains(term))) {
-                    logger.info("Bird-related term found: {}", label);
-                    return true;
+                // Check if this label matches any bird terms
+                boolean isBirdTerm = BIRD_TERMS.stream().anyMatch(term -> label.contains(term));
+                
+                if (isBirdTerm) {
+                    logger.info("🦅 [BIRD MATCH] Label: '{}', Confidence: {}%", label, String.format("%.2f", confidence));
+                    foundBird = true;
+                } else {
+                    logger.info("Label: '{}', Confidence: {}%", label, String.format("%.2f", confidence));
                 }
             }
 
-            logger.warn("No bird-related terms found in the image");
-            return false;
+            // Log summary
+            logger.info("=== Analysis Summary ===");
+            if (foundBird) {
+                logger.info("✅ Bird detected in image!");
+            } else {
+                logger.warn("❌ No bird-related terms found in the image");
+            }
+            logger.info("=====================");
+
+            return foundBird;
         } catch (Exception e) {
             logger.error("Error during image verification: {}", e.getMessage(), e);
             throw e;

@@ -41,14 +41,14 @@
     </div>
 
     <!-- Main Content -->
-    <div class="container">
+    <div class="container-fluid px-4">
         <!-- Testimonials Section -->
         <div class="row mb-5">
             <div class="col-12">
                 <h2 class="text-center mb-4">Testimonials</h2>
-                <div class="row g-4">
-                    <div th:if="${testimonials}" th:each="testimonial : ${testimonials}" class="col-md-6">
-                        <div class="card h-100">
+                <div class="row g-4 justify-content-center">
+                    <div th:if="${testimonials}" th:each="testimonial : ${testimonials}" class="col-md-4">
+                        <div class="card h-100 shadow-sm">
                             <div class="card-body">
                                 <p class="card-text" th:text="${testimonial.content}"></p>
                                 <footer class="blockquote-footer mt-2">
@@ -66,81 +66,54 @@
         </div>
 
         <!-- Birds Section -->
-        <div class="bg-light row p-2">
+        <div class="row justify-content-center">
             <!-- Sidebar -->
             <div class="col-md-3">
-                <div class="sticky-top pt-3">
-                    <h3>Filter Birds</h3>
-                    <div class="mb-4">
-                        <h4>Bird Type</h4>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="type" title="songbird" value="songbird">
-                            <label class="form-check-label">Songbird</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="type" title="waterfowl" value="waterfowl">
-                            <label class="form-check-label">Waterfowl</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="type" title="raptor" value="raptor">
-                            <label class="form-check-label">Raptor</label>
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <h4>Color</h4>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="color" title="Red" value="red">
-                            <label class="form-check-label">Red</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="color" title="Blue" value="blue">
-                            <label class="form-check-label">Blue</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="color" title="Brown" value="brown">
-                            <label class="form-check-label">Brown</label>
-                        </div>
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h3 class="h5 mb-3">Filter Birds</h3>
+                        <form th:action="@{/birds/filter}" method="get" id="filterForm">
+                            <div class="mb-4">
+                                <h4 class="h6">Bird Type</h4>
+                                <div th:each="type : ${types}" class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           th:name="'types'" 
+                                           th:value="${type}" 
+                                           th:id="'type-' + ${type}"
+                                           th:checked="${selectedTypes != null and selectedTypes.contains(type)}"
+                                           aria-label="Filter by bird type">
+                                    <label th:for="'type-' + ${type}" class="form-check-label" th:text="${type}">Songbird</label>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <h4 class="h6">Color</h4>
+                                <div th:each="color : ${colors}" class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           th:name="'colors'" 
+                                           th:value="${color}" 
+                                           th:id="'color-' + ${color}"
+                                           th:checked="${selectedColors != null and selectedColors.contains(color)}"
+                                           aria-label="Filter by bird color">
+                                    <label th:for="'color-' + ${color}" class="form-check-label" th:text="${color}">Red</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                        </form>
                     </div>
                 </div>
             </div>
 
             <!-- Bird Grid -->
-            <div class="col-md-9">
+            <div class="col-md-8">
                 <h2 class="mb-4">Featured Birds</h2>
-                <div class="row row-cols-1 row-cols-md-2 g-4">
-                    <div class="col">
-                        <div class="card h-100">
-                            <img src="/images/sparrow.jpeg" class="card-img-top" alt="Sparrow">
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    <div th:each="bird, stat : ${birds}" th:if="${stat.index < 8}" class="col">
+                        <div class="card h-100 shadow-sm">
+                            <img th:src="${bird.imageUrl}" class="card-img-top" title="${bird.name}" style="height: 200px; object-fit: cover;" 
+                                 th:alt="${bird.name}" th:title="${bird.name}">
                             <div class="card-body">
-                                <h3 class="card-title">Sparrow</h3>
-                                <p class="card-text">Common house sparrow</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <img src="/images/robin.jpeg" class="card-img-top" alt="Robin">
-                            <div class="card-body">
-                                <h3 class="card-title">Robin</h3>
-                                <p class="card-text">American robin</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <img src="/images/cardinal.jpeg" class="card-img-top" alt="Cardinal">
-                            <div class="card-body">
-                                <h3 class="card-title">Cardinal</h3>
-                                <p class="card-text">Northern cardinal</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <img src="/images/bluejay.jpeg" class="card-img-top" alt="Blue Jay">
-                            <div class="card-body">
-                                <h3 class="card-title">Blue Jay</h3>
-                                <p class="card-text">Bluest of Jays</p>
+                                <h3 class="card-title h5" th:text="${bird.name}">Bird Name</h3>
+                                <p class="card-text" th:text="${bird.funFact}">Fun fact about the bird</p>
                             </div>
                         </div>
                     </div>
