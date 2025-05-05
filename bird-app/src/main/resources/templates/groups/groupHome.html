@@ -21,6 +21,19 @@
             z-index: 1;
             flex: 1;
         }
+        .bird-card {
+            transition: transform 0.2s ease-in-out;
+            border: 1px solid rgba(0,0,0,0.125);
+        }
+        .bird-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-color: var(--bs-primary);
+        }
+        .dropdown-menu {
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100" th:classappend="${'theme-' + group.settings.theme}">
@@ -63,9 +76,9 @@
                                         <h5>Group Details</h5>
                                         <ul class="list-unstyled">
                                             <li><i class="bi bi-geo-alt me-2"></i><span th:text="${group.settings.region}">Region</span></li>
-                                            <li><i class="bi bi-clock me-2"></i><span th:text="${group.settings.preferredTime}">Meeting Time</span></li>
+                                            <li><i class="bi bi-people me-2"></i><span th:text="${group.settings.visibilityType}">Visibility</span></li>
                                             <li><i class="bi bi-calendar-event me-2"></i><span th:text="${group.settings.meetingFrequency}">Meeting Frequency</span></li>
-                                            <li><i class="bi bi-thermometer-half me-2"></i><span th:text="${group.settings.seasonalActivity}">Season</span></li>
+                                            <li><i class="bi bi-sun me-2"></i><span th:text="${group.settings.seasonalActivity}">Season</span></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -75,7 +88,6 @@
                                             <h5 class="card-title">Group Settings</h5>
                                             <ul class="list-unstyled">
                                                 <li><i class="bi bi-shield-check me-2"></i><span th:text="${group.settings.visibilityType}">Visibility</span></li>
-                                                <li><i class="bi bi-bar-chart me-2"></i><span th:text="${group.settings.difficultyLevel}">Difficulty</span></li>
                                                 <li><i class="bi bi-camera me-2"></i><span th:text="${group.settings.photoSharingEnabled ? 'Photo Sharing Enabled' : 'Photo Sharing Disabled'}">Photo Sharing</span></li>
                                                 <li><i class="bi bi-person-plus me-2"></i><span th:text="${group.settings.guestViewersAllowed ? 'Guests Allowed' : 'Guests Not Allowed'}">Guest Policy</span></li>
                                             </ul>
@@ -118,6 +130,245 @@
                                         <div th:if="${members == null || members.isEmpty()}" 
                                              class="col-12 text-center text-muted">
                                             No members yet
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Current Meeting Section - Show for members or if group is public -->
+                            <div th:if="${isMember || group.settings.visibilityType.name() == 'PUBLIC'}" class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="bi bi-camera me-2"></i>Current Meeting
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <!-- Upload Section - Only show for members -->
+                                        <div class="col-md-6" th:if="${isMember}">
+                                            <div class="card bg-light">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Submit Your Bird</h6>
+                                                    
+                                                    <!-- Existing Birds Selection -->
+                                                    <div class="mb-4" th:if="${userBirds != null && !userBirds.isEmpty()}">
+                                                        <div class="dropdown w-100">
+                                                            <button class="btn btn-outline-primary dropdown-toggle w-100" type="button" id="birdDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                <i class="bi bi-card-image me-1"></i>Select from Your Birds
+                                                            </button>
+                                                            <div class="dropdown-menu w-100 p-3" style="max-height: 400px; overflow-y: auto;">
+                                                                <div class="row g-3">
+                                                                    <div th:each="bird : ${userBirds}" class="col-12">
+                                                                        <a th:href="@{/groups/{id}/submit-bird(id=${group.id}, birdId=${bird.id})}"
+                                                                           class="text-decoration-none">
+                                                                            <div class="card bird-card h-100">
+                                                                                <div class="row g-0">
+                                                                                    <div class="col-4">
+                                                                                        <img th:src="${bird.imageUrl}"
+                                                                                             class="img-fluid rounded-start"
+                                                                                             style="height: 120px; object-fit: cover;"
+                                                                                             th:alt="${bird.name}"
+                                                                                             th:title="${bird.name + ' - ' + bird.kind}"
+                                                                                             alt="${bird.name}"
+                                                                                             title="${bird.name + ' - ' + bird.kind}">
+                                                                                    </div>
+                                                                                    <div class="col-8">
+                                                                                        <div class="card-body">
+                                                                                            <h6 class="card-title mb-1" th:text="${bird.name}">Bird Name</h6>
+                                                                                            <p class="card-text mb-1">
+                                                                                                <small class="text-muted">
+                                                                                                    <span th:text="${bird.kind}">Bird Kind</span> •
+                                                                                                    <span th:text="${bird.color}">Color</span>
+                                                                                                </small>
+                                                                                            </p>
+                                                                                            <p class="card-text">
+                                                                                                <small class="text-muted" th:text="${bird.funFact}">Fun Fact</small>
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <style>
+                                                        .bird-card {
+                                                            transition: transform 0.2s ease-in-out;
+                                                            border: 1px solid rgba(0,0,0,0.125);
+                                                        }
+                                                        .bird-card:hover {
+                                                            transform: translateY(-2px);
+                                                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                                                            border-color: var(--bs-primary);
+                                                        }
+                                                        .dropdown-menu {
+                                                            border-radius: 8px;
+                                                            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                                                        }
+                                                    </style>
+
+                                                    <div class="text-center mb-3">
+                                                        <span class="text-muted">- OR -</span>
+                                                    </div>
+
+                                                    <!-- Upload New Bird Form -->
+                                                    <form th:action="@{/groups/{id}/submit(id=${group.id})}" 
+                                                          method="post" 
+                                                          enctype="multipart/form-data"
+                                                          class="needs-validation" 
+                                                          novalidate>
+                                                        
+                                                        <!-- Success Message -->
+                                                        <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
+                                                            <i class="bi bi-check-circle-fill me-2"></i>
+                                                            <span th:text="${message}">Success message</span>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                                        </div>
+
+                                                        <!-- Error Message -->
+                                                        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                                                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                            <span th:text="${error}">Error message</span>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label for="birdName" class="form-label">Bird Name</label>
+                                                            <input type="text" 
+                                                                   class="form-control" 
+                                                                   id="birdName" 
+                                                                   name="birdName" 
+                                                                   required
+                                                                   placeholder="Give your bird a name!">
+                                                            <div class="invalid-feedback">Please give your bird a name!</div>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="birdImage" class="form-label">Upload New Bird Photo</label>
+                                                            <input type="file" 
+                                                                   class="form-control" 
+                                                                   id="birdImage" 
+                                                                   name="birdImage" 
+                                                                   accept="image/*" 
+                                                                   required>
+                                                            <div class="form-text">Max file size: 5MB. Supported formats: JPG, PNG</div>
+                                                            <div class="invalid-feedback">Please select an image file.</div>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary w-100">
+                                                            <i class="bi bi-upload me-1"></i>Upload New Bird
+                                                        </button>
+                                                    </form>
+                                                    
+                                                    <!-- Loading Spinner (Initially Hidden) -->
+                                                    <div id="uploadSpinner" class="text-center mt-3 d-none">
+                                                        <div class="spinner-border text-primary" role="status">
+                                                            <span class="visually-hidden">Loading...</span>
+                                                        </div>
+                                                        <p class="mt-2">Verifying bird image...</p>
+                                                    </div>
+
+                                                    <script>
+                                                        document.querySelector('form').addEventListener('submit', function() {
+                                                            document.querySelector('#uploadSpinner').classList.remove('d-none');
+                                                            document.querySelector('button[type="submit"]').disabled = true;
+                                                        });
+                                                    </script>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Current Submissions -->
+                                        <div class="col-md-6">
+                                            <div class="card bg-light">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">Current Submissions</h6>
+                                                    <div th:if="${currentSubmissions != null && !currentSubmissions.isEmpty()}">
+                                                        <div class="list-group">
+                                                            <div th:each="submission, stat : ${currentSubmissions}" 
+                                                                 class="list-group-item list-group-item-action">
+                                                                <div class="d-flex align-items-center">
+                                                                    <!-- Rank Badge -->
+                                                                    <div class="me-3">
+                                                                        <span th:if="${stat.index == 0}" 
+                                                                              class="badge bg-warning text-dark">
+                                                                            <i class="bi bi-trophy-fill"></i> 1st
+                                                                        </span>
+                                                                        <span th:if="${stat.index == 1}" 
+                                                                              class="badge bg-secondary">
+                                                                            <i class="bi bi-trophy-fill"></i> 2nd
+                                                                        </span>
+                                                                        <span th:if="${stat.index == 2}" 
+                                                                              class="badge bg-danger">
+                                                                            <i class="bi bi-trophy-fill"></i> 3rd
+                                                                        </span>
+                                                                        <span th:if="${stat.index > 2}" 
+                                                                              class="badge bg-light text-dark">
+                                                                            #<span th:text="${stat.index + 1}">4</span>
+                                                                        </span>
+                                                                    </div>
+                                                                    
+                                                                    <!-- Bird Image -->
+                                                                    <div class="flex-shrink-0 me-3">
+                                                                        <img th:src="${submission.imageUrl}" 
+                                                                             class="rounded" 
+                                                                             style="width: 100px; height: 100px; object-fit: cover;"
+                                                                             alt="Bird submission">
+                                                                    </div>
+                                                                    
+                                                                    <!-- Bird Details -->
+                                                                    <div class="flex-grow-1">
+                                                                        <h5 class="mb-1" th:text="${submission.birdName}">Bird Name</h5>
+                                                                        <p class="mb-1 text-muted">
+                                                                            <small>
+                                                                                Submitted by <span th:text="${submission.submittedBy.name}">username</span>
+                                                                                on <span th:text="${#temporals.format(submission.submittedAt, 'MMM d, yyyy')}">date</span>
+                                                                            </small>
+                                                                        </p>
+                                                                        <div class="d-flex align-items-center">
+                                                                            <span class="badge bg-primary me-2">
+                                                                                <i class="bi bi-heart-fill"></i> <span th:text="${submission.votes}">0</span> votes
+                                                                            </span>
+                                                                            <!-- Vote Button - Only show if user is a member and hasn't voted -->
+                                                                            <form th:if="${isMember && !hasVoted}"
+                                                                                  th:action="@{/groups/{id}/vote/{submissionId}(id=${group.id}, submissionId=${submission.id})}"
+                                                                                  method="POST"
+                                                                                  style="display: inline;"
+                                                                                  class="me-2">
+                                                                                <button type="submit" 
+                                                                                        class="btn btn-sm btn-outline-primary"
+                                                                                        th:title="'Vote for ' + ${submission.birdName}"
+                                                                                        title="Vote for this bird">
+                                                                                    <i class="bi bi-heart"></i> Vote
+                                                                                </button>
+                                                                            </form>
+                                                                            <!-- Admin Delete Button -->
+                                                                            <form th:if="${isAdmin}"
+                                                                                  th:action="@{/groups/{id}/delete-submission/{submissionId}(id=${group.id}, submissionId=${submission.id})}"
+                                                                                  method="POST"
+                                                                                  style="display: inline;"
+                                                                                  onsubmit="return confirm('Are you sure you want to delete this submission?');">
+                                                                                <button type="submit" 
+                                                                                        class="btn btn-sm btn-outline-danger"
+                                                                                        th:title="${submission.birdName + ' submission'}"
+                                                                                        title="Delete submission">
+                                                                                    <i class="bi bi-trash"></i>
+                                                                                </button>
+                                                                            </form>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div th:if="${currentSubmissions == null || currentSubmissions.isEmpty()}" 
+                                                         class="text-center text-muted py-3">
+                                                        No submissions yet
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

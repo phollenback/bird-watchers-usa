@@ -7,11 +7,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -49,8 +52,16 @@ public class BirdEntity {
     @Column(name = "image_url", length = 1000)
     private String imageUrl;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserEntity uploadedBy;
+
+    @Column(name = "uploaded_at", nullable = false)
+    private LocalDateTime uploadedAt;
+
     // Default constructor
     public BirdEntity() {
+        this.uploadedAt = LocalDateTime.now();
     }
 
     // Constructor with fields
@@ -61,6 +72,7 @@ public class BirdEntity {
         this.age = age;
         this.funFact = funFact;
         this.imageUrl = imageUrl;
+        this.uploadedAt = LocalDateTime.now();
     }
 
     // Getters and setters
@@ -118,6 +130,22 @@ public class BirdEntity {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public UserEntity getUploadedBy() {
+        return uploadedBy;
+    }
+
+    public void setUploadedBy(UserEntity uploadedBy) {
+        this.uploadedBy = uploadedBy;
+    }
+
+    public LocalDateTime getUploadedAt() {
+        return uploadedAt;
+    }
+
+    public void setUploadedAt(LocalDateTime uploadedAt) {
+        this.uploadedAt = uploadedAt;
     }
 
     // Convert to BirdModel

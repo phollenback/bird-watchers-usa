@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head th:replace="~{fragments/layout :: head('Bird App - Groups')}">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
@@ -55,22 +55,6 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="difficulty">Difficulty Level</label>
-                                <select id="difficulty" class="form-select" name="difficulty" th:value="${param.difficulty}" aria-label="Filter by difficulty level">
-                                    <option value="">All Levels</option>
-                                    <option th:each="level : ${difficultyLevels}" th:value="${level}" th:text="${level}" th:selected="${param.difficulty == level}">Level</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label" for="preferred_time">Meeting Time</label>
-                                <select id="preferred_time" class="form-select" name="preferred_time" th:value="${param.preferred_time}" aria-label="Filter by meeting time">
-                                    <option value="">Any Time</option>
-                                    <option th:each="time : ${meetingTimes}" th:value="${time}" th:text="${time}" th:selected="${param.preferred_time == time}">Time</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
                                 <label class="form-label" for="frequency">Meeting Frequency</label>
                                 <select id="frequency" class="form-select" name="frequency" th:value="${param.frequency}" aria-label="Filter by meeting frequency">
                                     <option value="">Any Frequency</option>
@@ -83,14 +67,6 @@
                                 <select id="season" class="form-select" name="season" th:value="${param.season}" aria-label="Filter by season">
                                     <option value="">All Seasons</option>
                                     <option th:each="season : ${seasons}" th:value="${season}" th:text="${season}" th:selected="${param.season == season}">Season</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label" for="features">Features</label>
-                                <select id="features" class="form-select" name="features" th:value="${param.features}" aria-label="Filter by features">
-                                    <option value="">All Features</option>
-                                    <option th:each="feature : ${featuresList}" th:value="${feature}" th:text="${feature}" th:selected="${param.features == feature}">Feature</option>
                                 </select>
                             </div>
 
@@ -164,6 +140,7 @@
     </div>
 
     <footer th:replace="~{fragments/layout :: footer}"></footer>
+    <th:block th:replace="~{fragments/layout :: scripts}"></th:block>
 
     <style>
         .hover-shadow {

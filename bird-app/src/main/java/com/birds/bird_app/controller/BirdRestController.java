@@ -6,8 +6,10 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import com.birds.bird_app.model.BirdEntity;
+import com.birds.bird_app.model.UserEntity;
 import com.birds.bird_app.service.BirdService;
 
 @RestController
@@ -35,10 +37,11 @@ public class BirdRestController {
     @PostMapping
     public ResponseEntity<BirdEntity> createBird(
         @RequestPart("bird") BirdEntity bird,
-        @RequestPart(value = "image", required = false) MultipartFile image
+        @RequestPart(value = "image", required = false) MultipartFile image,
+        @AuthenticationPrincipal UserEntity currentUser
     ) {
         try {
-            BirdEntity createdBird = birdService.createBird(bird, image);
+            BirdEntity createdBird = birdService.createBird(bird, image, currentUser);
             return ResponseEntity.ok(createdBird);
         } catch (IOException e) {
             return ResponseEntity.badRequest().build();

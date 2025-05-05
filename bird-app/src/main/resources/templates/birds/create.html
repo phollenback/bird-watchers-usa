@@ -14,9 +14,10 @@
     </div>
 
     <!-- Main Content -->
-    <div class="container py-4">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
+    <div class="container-fluid py-4">
+        <div class="row">
+            <!-- Left Column - Form -->
+            <div class="col-md-6">
                 <div class="card shadow-sm">
                     <div class="card-header bg-success text-white">
                         <h3 class="card-title h5 mb-0">
@@ -24,7 +25,7 @@
                         </h3>
                     </div>
                     <div class="card-body">
-                        <form th:action="@{/birds}" method="post" th:object="${bird}" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form th:action="@{/birds/create}" method="post" th:object="${bird}" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="mb-3">
                                 <label for="name" class="form-label">Bird Name</label>
                                 <input type="text" class="form-control" id="name" th:field="*{name}" required>
@@ -78,6 +79,112 @@
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Classification Results -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title h5 mb-0">
+                            <i class="bi bi-search me-2"></i>Bird Classification Results
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center py-5" th:if="${showClassification == false}">
+                            <i class="bi bi-search display-1 text-muted"></i>
+                            <p class="mt-3 text-muted">Upload a bird photo to see classification results</p>
+                        </div>
+                        
+                        <div th:if="${showClassification}" class="mt-4">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">Classification Results</h5>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Unidentified Bird Case -->
+                                    <div th:if="${birdLabels != null && birdLabels.empty}" class="alert alert-info">
+                                        <h5 class="alert-heading">Bird Detected!</h5>
+                                        <p>We've confirmed this is a bird, but we couldn't identify the specific species. Here's what we detected:</p>
+                                        <hr>
+                                        <div class="mt-3">
+                                            <h6>Detected Characteristics:</h6>
+                                            <ul class="list-unstyled">
+                                                <li th:each="label : ${classificationResults.characteristics}" class="mb-2">
+                                                    <i class="fas fa-check-circle text-success"></i>
+                                                    <span th:text="${label}"></span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <p class="mb-0 mt-3">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle"></i>
+                                                Our database is continuously growing. You can still add this bird to your collection, and we'll use the detected characteristics to improve our identification system.
+                                            </small>
+                                        </p>
+                                    </div>
+                                    
+                                    <!-- Specific Bird Match Case -->
+                                    <div th:if="${birdLabels != null && !birdLabels.empty}">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Primary Match:</h6>
+                                                <p class="lead" th:text="${birdLabels[0].label}"></p>
+                                                <p class="text-muted" th:text="${birdLabels[0].scientificName}"></p>
+                                                <div class="confidence-meter mb-3">
+                                                    <div class="progress">
+                                                        <div class="progress-bar bg-success" role="progressbar" 
+                                                             th:style="'width: ' + ${birdLabels[0].confidence} + '%'"
+                                                             th:text="${birdLabels[0].confidence} + '% Confidence'">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Characteristics:</h6>
+                                                <ul class="list-unstyled">
+                                                    <li th:each="char : ${birdLabels[0].characteristics}" class="mb-2">
+                                                        <i class="fas fa-check-circle text-success"></i>
+                                                        <span th:text="${char}"></span>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <h6>Additional Information:</h6>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="card h-100">
+                                                        <div class="card-body">
+                                                            <h6 class="card-title">Description</h6>
+                                                            <p class="card-text" th:text="${birdLabels[0].description}"></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="card h-100">
+                                                        <div class="card-body">
+                                                            <h6 class="card-title">Habitat</h6>
+                                                            <p class="card-text" th:text="${birdLabels[0].habitat}"></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="card h-100">
+                                                        <div class="card-body">
+                                                            <h6 class="card-title">Region</h6>
+                                                            <p class="card-text" th:text="${birdLabels[0].region}"></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

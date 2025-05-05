@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import com.birds.bird_app.model.UserEntity;
 import com.birds.bird_app.repository.UserRepository;
 import com.birds.bird_app.service.S3Service;
+import com.birds.bird_app.service.UserActivityService;
 
 import jakarta.validation.Valid;
 
@@ -36,14 +37,17 @@ public class UserController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final S3Service s3Service;
+    private final UserActivityService userActivityService;
 
     @Autowired
     public UserController(UserRepository userRepository, 
                          PasswordEncoder passwordEncoder,
-                         S3Service s3Service) {
+                         S3Service s3Service,
+                         UserActivityService userActivityService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.s3Service = s3Service;
+        this.userActivityService = userActivityService;
     }
 
     @GetMapping("/loginForm")
@@ -120,6 +124,7 @@ public class UserController {
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         model.addAttribute("user", user);
+        model.addAttribute("recentActivity", userActivityService.getRecentActivities(user));
         session.setAttribute("user", user);
         return "users/profile";
     }

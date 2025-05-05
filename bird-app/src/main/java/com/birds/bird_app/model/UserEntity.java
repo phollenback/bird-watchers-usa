@@ -2,6 +2,7 @@ package com.birds.bird_app.model;
 
 import java.util.Collection;
 import java.util.List;
+import java.io.Serializable;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -12,14 +13,17 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "users")
-public class UserEntity implements UserDetails {
+public class UserEntity implements UserDetails, Serializable {
+    private static final long serialVersionUID = 1L;
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,6 +52,10 @@ public class UserEntity implements UserDetails {
 
     @Column(name = "profile_picture_url", columnDefinition = "TEXT")
     private String profilePictureUrl;
+
+    @OneToOne(mappedBy = "user", cascade = jakarta.persistence.CascadeType.ALL)
+    @JsonIgnore
+    private UserSettings settings;
 
     public UserEntity() {
     }
@@ -141,5 +149,13 @@ public class UserEntity implements UserDetails {
 
     public void setProfilePictureUrl(String profilePictureUrl) {
         this.profilePictureUrl = profilePictureUrl;
+    }
+
+    public UserSettings getSettings() {
+        return settings;
+    }
+
+    public void setSettings(UserSettings settings) {
+        this.settings = settings;
     }
 }

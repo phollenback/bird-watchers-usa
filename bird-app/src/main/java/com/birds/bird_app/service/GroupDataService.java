@@ -1,9 +1,11 @@
 package com.birds.bird_app.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.birds.bird_app.model.GroupEntity;
@@ -91,13 +93,8 @@ public class GroupDataService implements GroupService {
     }
 
     @Override
-    public List<GroupEntity> getGroupsByDifficulty(String difficulty) {
-        return groupRepository.findBySettingsDifficultyLevel(difficulty);
-    }
-
-    @Override
-    public List<GroupEntity> getGroupsByMeetingTime(String preferredTime) {
-        return groupRepository.findBySettingsPreferredTime(preferredTime);
+    public List<GroupEntity> getGroupsByVisibilityType(String visibilityType) {
+        return groupRepository.findBySettingsVisibilityType(visibilityType);
     }
 
     @Override
@@ -129,5 +126,11 @@ public class GroupDataService implements GroupService {
         return groupRepository.findBySettingsAutoApproveMembership(
             membershipType.equals("AUTO_APPROVE")
         );
+    }
+
+    @Override
+    public List<GroupEntity> getActiveGroups(int limit) {
+        LocalDateTime oneWeekAgo = LocalDateTime.now().minusWeeks(1);
+        return groupRepository.findActiveGroups(oneWeekAgo, PageRequest.of(0, limit));
     }
 }

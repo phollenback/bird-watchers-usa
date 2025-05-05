@@ -70,18 +70,19 @@
                                 <div class="mb-3">
                                     <label class="form-label">Region</label>
                                     <select class="form-select" th:field="*{settings.region}">
-                                        <option value="Pacific Northwest">Pacific Northwest</option>
-                                        <option value="Northeast">Northeast</option>
-                                        <option value="Midwest">Midwest</option>
-                                        <option value="Southwest">Southwest</option>
-                                        <option value="Southeast">Southeast</option>
+                                        <option value="">Select Region</option>
+                                        <option th:each="region : ${regions}" 
+                                                th:value="${region}" 
+                                                th:text="${region}">Region</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Visibility</label>
                                     <select class="form-select" th:field="*{settings.visibilityType}">
-                                        <option value="PUBLIC">Public</option>
-                                        <option value="PRIVATE">Private</option>
+                                        <option value="">Select Visibility</option>
+                                        <option th:each="type : ${visibilityTypes}" 
+                                                th:value="${type}" 
+                                                th:text="${type}">Visibility Type</option>
                                     </select>
                                 </div>
                                 <div class="d-flex justify-content-between">
@@ -94,37 +95,21 @@
                             <div class="form-step" id="step3">
                                 <h4>Activity Settings</h4>
                                 <div class="mb-3">
-                                    <label class="form-label">Difficulty Level</label>
-                                    <select class="form-select" th:field="*{settings.difficultyLevel}">
-                                        <option value="BEGINNER">Beginner</option>
-                                        <option value="INTERMEDIATE">Intermediate</option>
-                                        <option value="ADVANCED">Advanced</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Preferred Time</label>
-                                    <select class="form-select" th:field="*{settings.preferredTime}">
-                                        <option value="MORNING">Morning</option>
-                                        <option value="AFTERNOON">Afternoon</option>
-                                        <option value="EVENING">Evening</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
                                     <label class="form-label">Meeting Frequency</label>
                                     <select class="form-select" th:field="*{settings.meetingFrequency}">
-                                        <option value="WEEKLY">Weekly</option>
-                                        <option value="BIWEEKLY">Bi-weekly</option>
-                                        <option value="MONTHLY">Monthly</option>
+                                        <option value="">Select Frequency</option>
+                                        <option th:each="freq : ${frequencies}" 
+                                                th:value="${freq}" 
+                                                th:text="${freq}">Frequency</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Seasonal Activity</label>
+                                    <label class="form-label">Season</label>
                                     <select class="form-select" th:field="*{settings.seasonalActivity}">
-                                        <option value="SPRING">Spring</option>
-                                        <option value="SUMMER">Summer</option>
-                                        <option value="FALL">Fall</option>
-                                        <option value="WINTER">Winter</option>
-                                        <option value="ALL_YEAR">All Year</option>
+                                        <option value="">Select Season</option>
+                                        <option th:each="season : ${seasons}" 
+                                                th:value="${season}" 
+                                                th:text="${season}">Season</option>
                                     </select>
                                 </div>
                                 <div class="d-flex justify-content-between">

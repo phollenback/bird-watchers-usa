@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -30,6 +31,7 @@ import com.birds.bird_app.config.TestSecurityConfig;
 import com.birds.bird_app.model.BirdEntity;
 import com.birds.bird_app.service.BirdService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.birds.bird_app.model.UserEntity;
 
 @WebMvcTest(BirdRestController.class)
 @Import({SecurityConfig.class, TestSecurityConfig.class})
@@ -88,11 +90,16 @@ class BirdRestControllerTest {
             objectMapper.writeValueAsString(testBird).getBytes()
         );
 
-        when(birdService.createBird(any(BirdEntity.class), any())).thenReturn(testBird);
+        UserEntity mockUser = new UserEntity();
+        mockUser.setEmail("test@example.com");
+        mockUser.setId(1L);
+
+        when(birdService.createBird(any(BirdEntity.class), any(), eq(mockUser))).thenReturn(testBird);
 
         mockMvc.perform(MockMvcRequestBuilders.multipart("/api/birds")
             .file(image)
-            .file(birdJson))
+            .file(birdJson)
+            .with(user(mockUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("TestBird"))
             .andExpect(jsonPath("$.kind").value("TestKind"));

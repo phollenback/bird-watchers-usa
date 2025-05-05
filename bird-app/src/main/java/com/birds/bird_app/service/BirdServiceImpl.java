@@ -1,16 +1,19 @@
 package com.birds.bird_app.service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.birds.bird_app.model.BirdEntity;
+import com.birds.bird_app.model.UserEntity;
 import com.birds.bird_app.repository.BirdRepository;
 
 @Service
@@ -41,8 +44,8 @@ public class BirdServiceImpl implements BirdService {
     }
 
     @Override
-    public BirdEntity createBird(BirdEntity bird, MultipartFile image) throws IOException {
-        logger.info("Creating new bird: {}", bird.getName());
+    public BirdEntity createBird(BirdEntity bird, MultipartFile image, UserEntity currentUser) throws IOException {
+        logger.info("Creating new bird: {} by user: {}", bird.getName(), currentUser.getEmail());
         
         if (image != null && !image.isEmpty()) {
             logger.info("Processing image upload for bird: {}", bird.getName());
@@ -63,6 +66,9 @@ public class BirdServiceImpl implements BirdService {
         } else {
             logger.info("No image provided for bird: {}", bird.getName());
         }
+        
+        // Set the user who created the bird
+        bird.setUploadedBy(currentUser);
         
         logger.info("Saving bird to database: {}", bird.getName());
         BirdEntity savedBird = birdRepository.save(bird);
@@ -103,5 +109,12 @@ public class BirdServiceImpl implements BirdService {
     public List<BirdEntity> searchBirds(String query) {
         logger.info("Searching birds with query: {}", query);
         return birdRepository.findByNameContainingIgnoreCaseOrKindContainingIgnoreCase(query, query);
+    }
+
+    @Override
+    public List<BirdEntity> getTrendingBirds(int limit) {
+        logger.info("Fetching trending birds with limit: {}", limit);
+        LocalDateTime oneWeekAgo = LocalDateTime.now().minusWeeks(1);
+        return birdRepository.findTrendingBirds(oneWeekAgo, PageRequest.of(0, limit));
     }
 } 

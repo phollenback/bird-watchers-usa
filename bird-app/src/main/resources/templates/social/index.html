@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Bird App - Social Feed')}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav th:replace="~{fragments/layout :: nav}"></nav>
+
+    <div class="container py-4">
+        <div class="row">
+            <!-- Main Feed -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">Recent Activity</h2>
+                        
+                        <!-- Activity Feed -->
+                        <div class="activity-feed">
+                            <div th:if="${#lists.isEmpty(activities)}" class="text-center py-4">
+                                <p class="text-muted">No recent activities to show</p>
+                            </div>
+                            <div th:each="activity : ${activities}" class="activity-item mb-4">
+                                <div class="d-flex">
+                                    <img th:src="${activity.user.profilePictureUrl != null ? activity.user.profilePictureUrl : '/images/default-profile.png'}"
+                                         class="rounded-circle me-3"
+                                         style="width: 48px; height: 48px; object-fit: cover;"
+                                         th:alt="${activity.user.name}"
+                                         title="${activity.user.name}">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h5 class="mb-0" th:text="${activity.user.name}">User Name</h5>
+                                            <small class="text-muted" th:text="${#temporals.format(activity.createdAt, 'MMM d, yyyy h:mm a')}">Date</small>
+                                        </div>
+                                        <p class="mb-2" th:text="${activity.description}">Activity description</p>
+                                        <div th:if="${activity.activityUrl}" class="activity-image mb-2">
+                                            <img th:src="${activity.activityUrl}" 
+                                                 class="img-fluid rounded"
+                                                 style="max-height: 300px; width: auto;"
+                                                 alt="Activity image">
+                                        </div>
+                                        <div class="activity-actions">
+                                            <button class="btn btn-sm btn-outline-primary me-2">
+                                                <i class="bi bi-heart me-1"></i>Like
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-chat me-1"></i>Comment
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Upcoming Meetings -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Upcoming Meetings</h5>
+                        <div class="list-group list-group-flush">
+                            <div th:if="${#lists.isEmpty(upcomingMeetings)}" class="text-center py-2">
+                                <p class="text-muted small">No upcoming meetings</p>
+                            </div>
+                            <a th:each="meeting : ${upcomingMeetings}"
+                               th:href="@{/groups/{id}/meetings/{meetingId}(id=${meeting.groupId}, meetingId=${meeting.id})}"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0" th:text="${meeting.groupName}">Group Name</h6>
+                                        <small class="text-muted" th:text="${#temporals.format(meeting.scheduledTime, 'MMM d, h:mm a')}">Meeting Time</small>
+                                    </div>
+                                    <span class="badge bg-success rounded-pill" th:text="${meeting.attendeeCount + ' attending'}">0 attending</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trending Birds -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Trending Birds</h5>
+                        <div class="list-group list-group-flush">
+                            <a th:each="bird : ${trendingBirds}" 
+                               th:href="@{/birds/{id}(id=${bird.id})}"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex align-items-center">
+                                    <img th:src="${bird.imageUrl}"
+                                         class="rounded me-3"
+                                         style="width: 48px; height: 48px; object-fit: cover;"
+                                         th:alt="${bird.name}"
+                                         title="${bird.name}">
+                                    <div>
+                                        <h6 class="mb-0" th:text="${bird.name}">Bird Name</h6>
+                                        <small class="text-muted" th:text="${bird.kind}">Bird Kind</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Groups -->
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Active Groups</h5>
+                        <div class="list-group list-group-flush">
+                            <a th:each="group : ${activeGroups}"
+                               th:href="@{/groups/{id}(id=${group.id})}"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0" th:text="${group.name}">Group Name</h6>
+                                        <small class="text-muted" th:text="${group.memberCount + ' members'}">0 members</small>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill" th:text="${group.activeBirdCount}">0</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer th:replace="~{fragments/layout :: footer}"></footer>
+    <th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html> 

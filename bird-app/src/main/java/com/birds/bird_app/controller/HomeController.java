@@ -1,14 +1,17 @@
 package com.birds.bird_app.controller;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.birds.bird_app.data.TestimonialDataService;
@@ -33,7 +36,15 @@ public class HomeController {
 
     @GetMapping("/")
     public String home(Model model) {
-        List<TestimonialModel> testimonials = tds.getAllTestimonials();
+        List<TestimonialModel> allTestimonials = tds.getAllTestimonials();
+        List<TestimonialModel> randomTestimonials = new ArrayList<>(allTestimonials);
+        Collections.shuffle(randomTestimonials);
+        
+        // Get only 6 random testimonials
+        List<TestimonialModel> testimonials = randomTestimonials.size() > 6 
+            ? randomTestimonials.subList(0, 6) 
+            : randomTestimonials;
+
         List<BirdEntity> birds = birdService.getAllBirds();
 
         List<String> colors = new ArrayList<>();
@@ -48,10 +59,28 @@ public class HomeController {
         model.addAttribute("colors", colors);
         model.addAttribute("types", types);
 
-
         return "home"; 
     }
 
+    @PostMapping("/testimonial")
+    @ResponseBody
+    public ResponseEntity<TestimonialModel> createTestimonial(
+        @RequestParam(required = true) String name,
+        @RequestParam(required = true) String location,
+        @RequestParam(required = true) String content
+    ) {
+        try {
+            TestimonialModel testimonial = new TestimonialModel(name, location, content);
+            
+            if(!tds.createTestimonial(testimonial)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            return ResponseEntity.ok(testimonial);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 
     @PostMapping("/signup")
     public String signUp(
@@ -66,38 +95,4 @@ public class HomeController {
         redirectAttributes.addFlashAttribute("message", "Thank you for signing up with: " + email);
         return "redirect:/";
     }
-
-    @PostMapping("/testimonial")
-    public String createTestimonial(
-        @RequestParam(required = true) String name,
-        @RequestParam(required = true) String location,
-        @RequestParam(required = true) String content,
-        RedirectAttributes redirectAttributes
-    ) {
-        System.out.println("=== Creating Testimonial ===");
-        System.out.println("Name: " + name);
-        System.out.println("Location: " + location);
-        System.out.println("Content: " + content);
-
-        try {
-            TestimonialModel testimonial = new TestimonialModel(name, location, content);
-            
-            if(!tds.createTestimonial(testimonial)) {
-                System.out.println("Failed to save testimonial");
-                redirectAttributes.addFlashAttribute("error", "Failed to create testimonial.");
-                return "redirect:/";
-            }
-
-            System.out.println("Testimonial created successfully");
-            redirectAttributes.addFlashAttribute("message", 
-                "Thank you " + name + " for your testimonial. Sending love to " + location);
-            
-            return "redirect:/";
-        } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-            redirectAttributes.addFlashAttribute("error", "An error occurred while creating your testimonial.");
-            return "redirect:/";
-        }
-    }
-    
 }

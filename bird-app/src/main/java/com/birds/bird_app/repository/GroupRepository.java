@@ -1,7 +1,9 @@
 package com.birds.bird_app.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,14 +20,8 @@ public interface GroupRepository extends JpaRepository<GroupEntity, Long> {
     @Query("SELECT g FROM GroupEntity g WHERE g.settings.region = :region")
     List<GroupEntity> findBySettingsRegion(@Param("region") String region);
     
-    @Query("SELECT g FROM GroupEntity g WHERE g.settings.visibilityType = :visibility")
-    List<GroupEntity> findBySettingsVisibilityType(@Param("visibility") String visibility);
-    
-    @Query("SELECT g FROM GroupEntity g WHERE g.settings.difficultyLevel = :difficulty")
-    List<GroupEntity> findBySettingsDifficultyLevel(@Param("difficulty") String difficulty);
-    
-    @Query("SELECT g FROM GroupEntity g WHERE g.settings.preferredTime = :preferredTime")
-    List<GroupEntity> findBySettingsPreferredTime(@Param("preferredTime") String preferredTime);
+    @Query("SELECT g FROM GroupEntity g WHERE g.settings.visibilityType = :visibilityType")
+    List<GroupEntity> findBySettingsVisibilityType(@Param("visibilityType") String visibilityType);
     
     @Query("SELECT g FROM GroupEntity g WHERE g.settings.meetingFrequency = :frequency")
     List<GroupEntity> findBySettingsMeetingFrequency(@Param("frequency") String frequency);
@@ -47,4 +43,9 @@ public interface GroupRepository extends JpaRepository<GroupEntity, Long> {
 
     @Query("SELECT g FROM GroupEntity g WHERE LOWER(g.name) LIKE LOWER(CONCAT('%', :name, '%'))")
     List<GroupEntity> findByNameContainingIgnoreCase(String name);
+
+    @Query("SELECT g FROM GroupEntity g " +
+           "WHERE EXISTS (SELECT a FROM UserActivity a WHERE a.group = g AND a.createdAt >= :since) " +
+           "ORDER BY (SELECT COUNT(a) FROM UserActivity a WHERE a.group = g AND a.createdAt >= :since) DESC")
+    List<GroupEntity> findActiveGroups(@Param("since") LocalDateTime since, Pageable pageable);
 }

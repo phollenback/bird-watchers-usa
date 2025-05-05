@@ -2,9 +2,11 @@ package com.birds.bird_app.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import com.birds.bird_app.model.GroupEntity;
 import com.birds.bird_app.model.GroupModel;
+import org.springframework.data.domain.PageRequest;
 
 public interface GroupService {
     List<GroupEntity> getAllGroups();
@@ -15,10 +17,10 @@ public interface GroupService {
     List<GroupEntity> searchGroups(String query);
     List<GroupEntity> getGroupsByRegion(String region);
     List<GroupEntity> getGroupsByVisibility(String visibility);
-    List<GroupEntity> getGroupsByDifficulty(String difficulty);
-    List<GroupEntity> getGroupsByMeetingTime(String preferredTime);
+    List<GroupEntity> getGroupsByVisibilityType(String visibilityType);
     List<GroupEntity> getGroupsByMeetingFrequency(String frequency);
     List<GroupEntity> getGroupsBySeason(String season);
     List<GroupEntity> getGroupsByFeature(String feature);
     List<GroupEntity> getGroupsByMembershipType(String membershipType);
+    List<GroupEntity> getActiveGroups(int limit);
 } 

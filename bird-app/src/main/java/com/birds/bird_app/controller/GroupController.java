@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.io.IOException;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,12 +21,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.util.StringUtils;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpSession;
 
 import com.birds.bird_app.model.GroupEntity;
 import com.birds.bird_app.model.GroupSettings;
 import com.birds.bird_app.model.GroupSettings.VisibilityType;
-import com.birds.bird_app.model.GroupSettings.DifficultyLevel;
-import com.birds.bird_app.model.GroupSettings.PreferredTime;
 import com.birds.bird_app.model.GroupSettings.MeetingFrequency;
 import com.birds.bird_app.model.GroupSettings.Season;
 import com.birds.bird_app.repository.GroupRepository;
@@ -34,7 +34,12 @@ import com.birds.bird_app.model.UserEntity;
 import com.birds.bird_app.repository.GroupMemberRepository;
 import com.birds.bird_app.repository.UserRepository;
 import com.birds.bird_app.service.S3Service;
-import com.birds.bird_app.model.enums.*;
+import com.birds.bird_app.model.BirdSubmission;
+import com.birds.bird_app.repository.BirdSubmissionRepository;
+import com.birds.bird_app.service.ImageVerificationService;
+import com.birds.bird_app.model.BirdEntity;
+import com.birds.bird_app.repository.BirdRepository;
+import com.birds.bird_app.service.UserActivityService;
 
 @Controller
 @RequestMapping("/groups")
@@ -52,88 +57,86 @@ public class GroupController {
     @Autowired
     private S3Service s3Service;
 
+    @Autowired
+    private BirdSubmissionRepository birdSubmissionRepository;
+
+    @Autowired
+    private ImageVerificationService imageVerificationService;
+
+    @Autowired
+    private BirdRepository birdRepository;
+
+    @Autowired
+    private UserActivityService userActivityService;
+
     @GetMapping
     public String getAllGroups(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String visibility,
-            @RequestParam(required = false) String difficulty,
-            @RequestParam(required = false) String preferred_time,
             @RequestParam(required = false) String frequency,
             @RequestParam(required = false) String season,
             @RequestParam(required = false) String features,
             @RequestParam(required = false) String membership,
-            Model model) {
+            Model model,
+            @AuthenticationPrincipal UserEntity currentUser,
+            HttpSession session) {
+        
+        if (currentUser != null) {
+            session.setAttribute("user", currentUser);
+        }
         
         List<GroupEntity> groups = groupRepository.findAll();
 
-        // Apply filters if they are present
-        if (groups != null && !groups.isEmpty()) {
-            if (StringUtils.hasText(search)) {
-                final String searchLower = search.toLowerCase();
-                groups = groups.stream()
-                    .filter(group -> group.getName().toLowerCase().contains(searchLower) ||
-                            (group.getDescription() != null && 
-                             group.getDescription().toLowerCase().contains(searchLower)))
-                    .collect(Collectors.toList());
-            }
+        if (search != null && !search.isEmpty()) {
+            groups = groups.stream()
+                .filter(group -> group.getName().toLowerCase().contains(search.toLowerCase()) ||
+                               (group.getDescription() != null && 
+                                group.getDescription().toLowerCase().contains(search.toLowerCase())))
+                .collect(Collectors.toList());
+        }
 
-            if (StringUtils.hasText(region)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            region.equals(group.getSettings().getRegion()))
-                    .collect(Collectors.toList());
-            }
+        if (StringUtils.hasText(region)) {
+            groups = groups.stream()
+                .filter(group -> group.getSettings() != null && 
+                        region.equals(group.getSettings().getRegion()))
+                .collect(Collectors.toList());
+        }
 
-            if (StringUtils.hasText(visibility)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            VisibilityType.valueOf(visibility) == group.getSettings().getVisibilityType())
-                    .collect(Collectors.toList());
-            }
+        if (StringUtils.hasText(visibility)) {
+            groups = groups.stream()
+                .filter(group -> group.getSettings() != null && 
+                        VisibilityType.valueOf(visibility) == group.getSettings().getVisibilityType())
+                .collect(Collectors.toList());
+        }
 
-            if (StringUtils.hasText(difficulty)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            DifficultyLevel.valueOf(difficulty) == group.getSettings().getDifficultyLevel())
-                    .collect(Collectors.toList());
-            }
+        if (StringUtils.hasText(frequency)) {
+            groups = groups.stream()
+                .filter(group -> group.getSettings() != null && 
+                        MeetingFrequency.valueOf(frequency) == group.getSettings().getMeetingFrequency())
+                .collect(Collectors.toList());
+        }
 
-            if (StringUtils.hasText(preferred_time)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            PreferredTime.valueOf(preferred_time) == group.getSettings().getPreferredTime())
-                    .collect(Collectors.toList());
-            }
+        if (StringUtils.hasText(season)) {
+            groups = groups.stream()
+                .filter(group -> group.getSettings() != null && 
+                        Season.valueOf(season) == group.getSettings().getSeasonalActivity())
+                .collect(Collectors.toList());
+        }
 
-            if (StringUtils.hasText(frequency)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            MeetingFrequency.valueOf(frequency) == group.getSettings().getMeetingFrequency())
-                    .collect(Collectors.toList());
-            }
+        if (StringUtils.hasText(features)) {
+            groups = groups.stream()
+                .filter(group -> group.getSettings() != null && 
+                        hasFeature(group, features))
+                .collect(Collectors.toList());
+        }
 
-            if (StringUtils.hasText(season)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            Season.valueOf(season) == group.getSettings().getSeasonalActivity())
-                    .collect(Collectors.toList());
-            }
-
-            if (StringUtils.hasText(features)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            hasFeature(group, features))
-                    .collect(Collectors.toList());
-            }
-
-            if (StringUtils.hasText(membership)) {
-                groups = groups.stream()
-                    .filter(group -> group.getSettings() != null && 
-                            membership.equals(group.getSettings().isAutoApproveMembership() ? 
-                                "AUTO_APPROVE" : "MANUAL_APPROVE"))
-                    .collect(Collectors.toList());
-            }
+        if (StringUtils.hasText(membership)) {
+            groups = groups.stream()
+                .filter(group -> group.getSettings() != null && 
+                        membership.equals(group.getSettings().isAutoApproveMembership() ? 
+                            "AUTO_APPROVE" : "MANUAL_APPROVE"))
+                .collect(Collectors.toList());
         }
 
         model.addAttribute("groups", groups);
@@ -141,8 +144,6 @@ public class GroupController {
         // Add filter options for the dropdowns
         model.addAttribute("regions", List.of("Pacific Northwest", "Northeast", "Midwest", "Southwest", "Southeast"));
         model.addAttribute("visibilityTypes", VisibilityType.values());
-        model.addAttribute("difficultyLevels", DifficultyLevel.values());
-        model.addAttribute("meetingTimes", PreferredTime.values());
         model.addAttribute("frequencies", MeetingFrequency.values());
         model.addAttribute("seasons", Season.values());
         model.addAttribute("featuresList", List.of("PHOTO_SHARING", "GUEST_ALLOWED", "VERIFICATION"));
@@ -175,16 +176,50 @@ public class GroupController {
             
             // Check if current user is a member
             boolean isMember = false;
+            boolean isAdmin = false;
             if (currentUser != null) {
-                isMember = groupMemberRepository.findByUserAndGroup(currentUser, group).isPresent();
+                Optional<GroupMember> memberOpt = groupMemberRepository.findByUserAndGroup(currentUser, group);
+                isMember = memberOpt.isPresent();
+                isAdmin = memberOpt.map(member -> 
+                    member.getRole().equals("FOUNDER") || 
+                    member.getRole().equals("ADMIN") || 
+                    currentUser.equals(group.getBirdKeeper())
+                ).orElse(false);
             }
             model.addAttribute("isMember", isMember);
+            model.addAttribute("isAdmin", isAdmin);
                 
             // Get members
             List<UserEntity> members = group.getMembers().stream()
                 .map(GroupMember::getUser)
                 .collect(Collectors.toList());
             System.out.println("Found " + members.size() + " members");
+
+            // Get current meeting submissions with votes, sorted by votes
+            List<BirdSubmission> currentSubmissions = birdSubmissionRepository
+                .findByGroupAndStatusOrderByVotesDescSubmittedAtDesc(group, "ACTIVE");
+            model.addAttribute("currentSubmissions", currentSubmissions);
+
+            // Check if user has voted (only for members)
+            if (currentUser != null && isMember) {
+                boolean hasVoted = currentSubmissions.stream()
+                    .anyMatch(sub -> sub.getVotedBy().contains(currentUser));
+                model.addAttribute("hasVoted", hasVoted);
+            }
+
+            // Get user's birds if they're a member
+            if (isMember && currentUser != null) {
+                // Check if user has already submitted
+                boolean hasSubmitted = currentSubmissions.stream()
+                    .anyMatch(sub -> sub.getSubmittedBy().getId().equals(currentUser.getId()));
+                model.addAttribute("hasSubmitted", hasSubmitted);
+
+                // Only show birds if user hasn't submitted yet
+                if (!hasSubmitted) {
+                    List<BirdEntity> userBirds = birdRepository.findByUploadedByOrderByUploadedAtDesc(currentUser);
+                    model.addAttribute("userBirds", userBirds);
+                }
+            }
                 
             // Add attributes to model
             model.addAttribute("group", group);
@@ -353,8 +388,6 @@ public class GroupController {
             @RequestParam(value = "image", required = false) MultipartFile groupImage,
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String visibilityType,
-            @RequestParam(required = false) String difficultyLevel,
-            @RequestParam(required = false) String preferredTime,
             @RequestParam(required = false) String meetingFrequency,
             @RequestParam(required = false) String seasonalActivity,
             @RequestParam(required = false) Boolean photoSharingEnabled,
@@ -394,8 +427,6 @@ public class GroupController {
             // Update other settings if provided
             if (region != null) group.getSettings().setRegion(region);
             if (visibilityType != null) group.getSettings().setVisibilityType(VisibilityType.valueOf(visibilityType));
-            if (difficultyLevel != null) group.getSettings().setDifficultyLevel(DifficultyLevel.valueOf(difficultyLevel));
-            if (preferredTime != null) group.getSettings().setPreferredTime(PreferredTime.valueOf(preferredTime));
             if (meetingFrequency != null) group.getSettings().setMeetingFrequency(MeetingFrequency.valueOf(meetingFrequency));
             if (seasonalActivity != null) group.getSettings().setSeasonalActivity(Season.valueOf(seasonalActivity));
             if (photoSharingEnabled != null) group.getSettings().setPhotoSharingEnabled(photoSharingEnabled);
@@ -413,6 +444,230 @@ public class GroupController {
 
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to update group settings: " + e.getMessage());
+            return "redirect:/groups/" + id;
+        }
+    }
+
+    @PostMapping("/{id}/submit")
+    public String submitBird(
+            @PathVariable Long id,
+            @RequestParam("birdImage") MultipartFile birdImage,
+            @RequestParam("birdName") String birdName,
+            @AuthenticationPrincipal UserEntity currentUser,
+            RedirectAttributes redirectAttributes) {
+        
+        try {
+            GroupEntity group = groupRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+            // Verify user is a member
+            if (!groupMemberRepository.findByUserAndGroup(currentUser, group).isPresent()) {
+                redirectAttributes.addFlashAttribute("error", "You must be a member to submit birds");
+                return "redirect:/groups/" + id;
+            }
+
+            // Check if user has already submitted
+            boolean hasSubmitted = birdSubmissionRepository
+                .findByGroupAndStatusAndSubmittedBy(group, "ACTIVE", currentUser)
+                .isPresent();
+            if (hasSubmitted) {
+                redirectAttributes.addFlashAttribute("error", "You have already submitted a bird to this meeting");
+                return "redirect:/groups/" + id;
+            }
+
+            // Verify image is a bird using Vision API
+            if (!imageVerificationService.isBirdImage(birdImage)) {
+                redirectAttributes.addFlashAttribute("error", "That's not a bird! 🐦 This is a bird-watching app, not a 'whatever-you-just-uploaded' watching app! Please try again with a proper bird photo.");
+                return "redirect:/groups/" + id;
+            }
+
+            // Validate bird name
+            if (birdName == null || birdName.trim().isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "Every bird deserves a name! 🐦 Please give your bird a name.");
+                return "redirect:/groups/" + id;
+            }
+
+            // Upload image to S3
+            String imageUrl = s3Service.uploadFile(birdImage);
+
+            // Create bird submission
+            BirdSubmission submission = new BirdSubmission();
+            submission.setGroup(group);
+            submission.setSubmittedBy(currentUser);
+            submission.setImageUrl(imageUrl);
+            submission.setSubmittedAt(LocalDateTime.now());
+            submission.setStatus("ACTIVE");
+            submission.setVotes(0);
+            submission.setBirdName(birdName.trim());
+            birdSubmissionRepository.save(submission);
+
+            // Track the activity
+            userActivityService.trackGroupSubmission(
+                currentUser, 
+                group,
+                birdName.trim(), 
+                "/groups/" + id
+            );
+
+            redirectAttributes.addFlashAttribute("message", "Bird successfully submitted! 🐦");
+            return "redirect:/groups/" + id;
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Failed to submit bird: " + e.getMessage());
+            return "redirect:/groups/" + id;
+        }
+    }
+
+    @GetMapping("/{id}/submit-bird")
+    public String submitExistingBird(
+            @PathVariable Long id,
+            @RequestParam Long birdId,
+            @AuthenticationPrincipal UserEntity currentUser,
+            RedirectAttributes redirectAttributes) {
+        
+        try {
+            GroupEntity group = groupRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+            // Verify user is a member
+            if (!groupMemberRepository.findByUserAndGroup(currentUser, group).isPresent()) {
+                redirectAttributes.addFlashAttribute("error", "You must be a member to submit birds");
+                return "redirect:/groups/" + id;
+            }
+
+            // Check if user has already submitted
+            boolean hasSubmitted = birdSubmissionRepository
+                .findByGroupAndStatusAndSubmittedBy(group, "ACTIVE", currentUser)
+                .isPresent();
+            if (hasSubmitted) {
+                redirectAttributes.addFlashAttribute("error", "You have already submitted a bird to this meeting");
+                return "redirect:/groups/" + id;
+            }
+
+            // Get the bird and verify ownership
+            BirdEntity bird = birdRepository.findById(birdId)
+                .orElseThrow(() -> new RuntimeException("Bird not found"));
+            
+            if (!bird.getUploadedBy().getId().equals(currentUser.getId())) {
+                redirectAttributes.addFlashAttribute("error", "You can only submit your own birds");
+                return "redirect:/groups/" + id;
+            }
+
+            // Create bird submission
+            BirdSubmission submission = new BirdSubmission();
+            submission.setGroup(group);
+            submission.setSubmittedBy(currentUser);
+            submission.setImageUrl(bird.getImageUrl());
+            submission.setSubmittedAt(LocalDateTime.now());
+            submission.setStatus("ACTIVE");
+            submission.setVotes(0);
+            submission.setBirdName(bird.getName());
+            birdSubmissionRepository.save(submission);
+
+            // Track the activity
+            userActivityService.trackGroupSubmission(
+                currentUser, 
+                group,
+                bird.getName(), 
+                "/groups/" + id
+            );
+
+            redirectAttributes.addFlashAttribute("message", "Bird successfully submitted!");
+            return "redirect:/groups/" + id;
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Failed to submit bird: " + e.getMessage());
+            return "redirect:/groups/" + id;
+        }
+    }
+
+    @PostMapping("/{id}/delete-submission/{submissionId}")
+    public String deleteSubmission(
+            @PathVariable Long id,
+            @PathVariable Long submissionId,
+            @AuthenticationPrincipal UserEntity currentUser,
+            RedirectAttributes redirectAttributes) {
+        
+        try {
+            GroupEntity group = groupRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+            // Check if user is admin
+            boolean isAdmin = groupMemberRepository.findByUserAndGroup(currentUser, group)
+                .map(member -> 
+                    member.getRole().equals("FOUNDER") || 
+                    member.getRole().equals("ADMIN") || 
+                    currentUser.equals(group.getBirdKeeper())
+                )
+                .orElse(false);
+
+            if (!isAdmin) {
+                redirectAttributes.addFlashAttribute("error", "You don't have permission to delete submissions");
+                return "redirect:/groups/" + id;
+            }
+
+            // Delete the submission
+            BirdSubmission submission = birdSubmissionRepository.findById(submissionId)
+                .orElseThrow(() -> new RuntimeException("Submission not found"));
+
+            if (!submission.getGroup().getId().equals(id)) {
+                redirectAttributes.addFlashAttribute("error", "Invalid submission for this group");
+                return "redirect:/groups/" + id;
+            }
+
+            birdSubmissionRepository.delete(submission);
+            redirectAttributes.addFlashAttribute("message", "Submission deleted successfully");
+            return "redirect:/groups/" + id;
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Failed to delete submission: " + e.getMessage());
+            return "redirect:/groups/" + id;
+        }
+    }
+
+    @PostMapping("/{id}/vote/{submissionId}")
+    public String voteForSubmission(
+            @PathVariable Long id,
+            @PathVariable Long submissionId,
+            @AuthenticationPrincipal UserEntity currentUser,
+            RedirectAttributes redirectAttributes) {
+        
+        try {
+            GroupEntity group = groupRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+            // Verify user is a member
+            if (!groupMemberRepository.findByUserAndGroup(currentUser, group).isPresent()) {
+                redirectAttributes.addFlashAttribute("error", "You must be a member to vote");
+                return "redirect:/groups/" + id;
+            }
+
+            // Get the submission
+            BirdSubmission submission = birdSubmissionRepository.findById(submissionId)
+                .orElseThrow(() -> new RuntimeException("Submission not found"));
+
+            // Verify submission belongs to this group
+            if (!submission.getGroup().getId().equals(id)) {
+                redirectAttributes.addFlashAttribute("error", "Invalid submission for this group");
+                return "redirect:/groups/" + id;
+            }
+
+            // Check if user has already voted
+            if (submission.getVotedBy().contains(currentUser)) {
+                redirectAttributes.addFlashAttribute("error", "You have already voted for this submission");
+                return "redirect:/groups/" + id;
+            }
+
+            // Add vote
+            submission.getVotedBy().add(currentUser);
+            submission.setVotes(submission.getVotes() + 1);
+            birdSubmissionRepository.save(submission);
+
+            redirectAttributes.addFlashAttribute("message", "Vote recorded successfully!");
+            return "redirect:/groups/" + id;
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Failed to record vote: " + e.getMessage());
             return "redirect:/groups/" + id;
         }
     }

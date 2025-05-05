@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <th:block th:replace="~{fragments/layout :: head('User Settings')}"></th:block>
+</head>
+<body>
+    <th:block th:replace="~{fragments/layout :: nav}"></th:block>
+
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8 mx-auto">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0">User Settings</h4>
+                        </div>
+                        <div class="card-body">
+                            <!-- Profile Settings -->
+                            <form th:action="@{/users/profile/update}" method="post" enctype="multipart/form-data" class="mb-4">
+                                <h5 class="mb-3">Profile Settings</h5>
+                                
+                                <!-- Profile Picture -->
+                                <div class="mb-3">
+                                    <label for="profilePicture" class="form-label">Profile Picture</label>
+                                    <input type="file" class="form-control" id="profilePicture" name="profilePicture" accept="image/*">
+                                    <div class="form-text">Upload a new profile picture (max 5MB)</div>
+                                </div>
+
+                                <!-- Name -->
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" th:value="${session.user.name}" required>
+                                </div>
+
+                                <!-- Email -->
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" th:value="${session.user.email}" required>
+                                </div>
+
+                                <!-- Password -->
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="newPassword" name="newPassword">
+                                    <div class="form-text">Leave blank to keep current password</div>
+                                </div>
+
+                                <!-- Confirm Password -->
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword">
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Update Profile</button>
+                            </form>
+
+                            <hr class="my-4">
+
+                            <!-- Preferences -->
+                            <form th:action="@{/users/settings/update}" method="post" class="mb-4">
+                                <h5 class="mb-3">Preferences</h5>
+                                
+                                <!-- Theme Preference -->
+                                <div class="mb-3">
+                                    <label class="form-label">Theme Preference</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeLight" value="light" th:checked="${session.user.settings.theme == 'light'}">
+                                        <label class="form-check-label" for="themeLight">Light</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeDark" value="dark" th:checked="${session.user.settings.theme == 'dark'}">
+                                        <label class="form-check-label" for="themeDark">Dark</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeNature" value="nature" th:checked="${session.user.settings.theme == 'nature'}">
+                                        <label class="form-check-label" for="themeNature">Nature</label>
+                                    </div>
+                                </div>
+
+                                <!-- Email Notifications -->
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="emailNotifications" name="emailNotifications" th:checked="${session.user.settings.emailNotifications}">
+                                        <label class="form-check-label" for="emailNotifications">Email Notifications</label>
+                                    </div>
+                                    <div class="form-text">Receive email notifications for important updates</div>
+                                </div>
+
+                                <!-- Privacy Settings -->
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="isPublic" name="isPublic" th:checked="${session.user.settings.isPublic}">
+                                        <label class="form-check-label" for="isPublic">Public Profile</label>
+                                    </div>
+                                    <div class="form-text">Make your profile visible to other users</div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Save Preferences</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <th:block th:replace="~{fragments/layout :: footer}"></th:block>
+    <th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+
+    <script th:inline="javascript">
+        // Preview profile picture before upload
+        document.getElementById('profilePicture').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) { // 5MB
+                    alert('File size must be less than 5MB');
+                    e.target.value = '';
+                    return;
+                }
+            }
+        });
+
+        // Validate password match
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword && newPassword !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match');
+            }
+        });
+    </script>
+</body>
+</html> 

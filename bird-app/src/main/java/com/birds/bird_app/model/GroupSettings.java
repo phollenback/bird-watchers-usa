@@ -23,14 +23,6 @@ public class GroupSettings {
     @Enumerated(EnumType.STRING)
     private VisibilityType visibilityType = VisibilityType.PUBLIC;
 
-    @Column(name = "difficulty_level")
-    @Enumerated(EnumType.STRING)
-    private DifficultyLevel difficultyLevel = DifficultyLevel.BEGINNER;
-
-    @Column(name = "preferred_time")
-    @Enumerated(EnumType.STRING)
-    private PreferredTime preferredTime = PreferredTime.MORNING;
-
     @Column(name = "meeting_frequency")
     @Enumerated(EnumType.STRING)
     private MeetingFrequency meetingFrequency = MeetingFrequency.WEEKLY;
@@ -61,14 +53,6 @@ public class GroupSettings {
         PUBLIC, PRIVATE, INVITE_ONLY
     }
 
-    public enum DifficultyLevel {
-        BEGINNER, INTERMEDIATE, EXPERT
-    }
-
-    public enum PreferredTime {
-        MORNING, AFTERNOON, EVENING
-    }
-
     public enum MeetingFrequency {
         WEEKLY, MONTHLY, CUSTOM
     }
@@ -80,8 +64,6 @@ public class GroupSettings {
     // Constructor with default values
     public GroupSettings() {
         this.visibilityType = VisibilityType.PUBLIC;
-        this.difficultyLevel = DifficultyLevel.BEGINNER;
-        this.preferredTime = PreferredTime.MORNING;
         this.meetingFrequency = MeetingFrequency.WEEKLY;
         this.seasonalActivity = Season.SPRING;
         this.photoSharingEnabled = true;
@@ -90,16 +72,8 @@ public class GroupSettings {
         this.autoApproveMembership = true;
     }
 
-    public DifficultyLevel getDifficultyLevel() {
-        return difficultyLevel;
-    }
-
     public VisibilityType getVisibilityType() {
         return visibilityType;
-    }
-
-    public PreferredTime getPreferredTime() {
-        return preferredTime;
     }
 
     public MeetingFrequency getMeetingFrequency() {
@@ -136,14 +110,6 @@ public class GroupSettings {
 
     public void setVisibilityType(VisibilityType visibilityType) {
         this.visibilityType = visibilityType;
-    }
-
-    public void setDifficultyLevel(DifficultyLevel difficultyLevel) {
-        this.difficultyLevel = difficultyLevel;
-    }
-
-    public void setPreferredTime(PreferredTime preferredTime) {
-        this.preferredTime = preferredTime;
     }
 
     public void setMeetingFrequency(MeetingFrequency meetingFrequency) {
@@ -192,8 +158,6 @@ public class GroupSettings {
             "theme='" + theme + '\'' +
             ", region='" + region + '\'' +
             ", visibilityType=" + visibilityType +
-            ", difficultyLevel=" + difficultyLevel +
-            ", preferredTime=" + preferredTime +
             ", meetingFrequency=" + meetingFrequency +
             ", seasonalActivity=" + seasonalActivity +
             ", photoSharingEnabled=" + photoSharingEnabled +

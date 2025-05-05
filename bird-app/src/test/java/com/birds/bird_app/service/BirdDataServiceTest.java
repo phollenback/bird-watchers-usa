@@ -15,6 +15,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.birds.bird_app.model.BirdEntity;
+import com.birds.bird_app.model.UserEntity;
 import com.birds.bird_app.repository.BirdRepository;
 
 class BirdDataServiceTest {
@@ -64,12 +65,15 @@ class BirdDataServiceTest {
     void testCreateBird() throws Exception {
         BirdEntity bird = new BirdEntity("Bird1", "Kind1", "Color1", 1, "Fun1", null);
         MultipartFile image = mock(MultipartFile.class);
+        UserEntity mockUser = mock(UserEntity.class);
+        when(mockUser.getEmail()).thenReturn("test@example.com");
+        
         when(image.isEmpty()).thenReturn(false);
         when(imageVerificationService.isBirdImage(image)).thenReturn(true);
         when(s3Service.uploadFile(image)).thenReturn("http://s3.url/image.jpg");
         when(birdRepository.save(any(BirdEntity.class))).thenReturn(bird);
 
-        BirdEntity createdBird = birdService.createBird(bird, image);
+        BirdEntity createdBird = birdService.createBird(bird, image, mockUser);
         assertNotNull(createdBird);
         assertEquals("http://s3.url/image.jpg", createdBird.getImageUrl());
         verify(s3Service).uploadFile(image);

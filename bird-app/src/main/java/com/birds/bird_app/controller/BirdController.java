@@ -1,96 +1,152 @@
 package com.birds.bird_app.controller;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Collection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
 import com.birds.bird_app.model.BirdEntity;
 import com.birds.bird_app.service.BirdService;
+import com.birds.bird_app.service.ImageService;
 import com.birds.bird_app.service.ImageVerificationService;
-
-import jakarta.validation.Valid;
+import com.birds.bird_app.service.UserActivityService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.birds.bird_app.model.UserEntity;
+import jakarta.servlet.http.HttpSession;
 
 @Controller
 @RequestMapping("/birds")
 public class BirdController {
     private final BirdService birdService;
+    private final ImageService imageService;
     private final ImageVerificationService imageVerificationService;
+    private final UserActivityService userActivityService;
     private static final Logger logger = LoggerFactory.getLogger(BirdController.class);
 
     @Autowired
-    public BirdController(BirdService birdService, ImageVerificationService imageVerificationService) {
+    public BirdController(BirdService birdService, 
+                         ImageService imageService, 
+                         ImageVerificationService imageVerificationService,
+                         UserActivityService userActivityService) {
         this.birdService = birdService;
+        this.imageService = imageService;
         this.imageVerificationService = imageVerificationService;
+        this.userActivityService = userActivityService;
     }
 
     @GetMapping
-    public String index(Model model) {
+    public String index(Model model, @AuthenticationPrincipal UserEntity currentUser, HttpSession session) {
+        if (currentUser != null) {
+            session.setAttribute("user", currentUser);
+        }
         model.addAttribute("birds", birdService.getAllBirds());
         return "birds/index";
     }
 
-    @GetMapping("/new")
-    public String showCreateForm(Model model) {
+    @GetMapping("/create")
+    public String showCreateForm(Model model, @AuthenticationPrincipal UserEntity currentUser, HttpSession session) {
+        if (currentUser != null) {
+            session.setAttribute("user", currentUser);
+        }
         model.addAttribute("bird", new BirdEntity());
+        model.addAttribute("showClassification", false);
         return "birds/create";
     }
 
-    @PostMapping
-    public String createBird(
-        @ModelAttribute("bird") @Valid BirdEntity bird,
-        BindingResult result,
-        @RequestParam("image") MultipartFile file,
-        RedirectAttributes redirectAttributes
-    ) {
+    @PostMapping("/create")
+    public String createBird(@ModelAttribute BirdEntity bird, 
+                           @RequestParam("image") MultipartFile image,
+                           @AuthenticationPrincipal UserEntity currentUser,
+                           Model model) {
         try {
-            // Validate input
-            if (result.hasErrors()) {
-                List<FieldError> errors = result.getFieldErrors();
-                for (FieldError error : errors) {
-                    redirectAttributes.addFlashAttribute(error.getField() + "Error", error.getDefaultMessage());
+            // Verify if the image contains a bird
+            if (!imageVerificationService.isBirdImage(image)) {
+                model.addAttribute("error", "Could not identify any birds in the image. Please try again.");
+                model.addAttribute("bird", bird);
+                model.addAttribute("showClassification", false);
+                return "birds/create";
+            }
+
+            // Get bird classification results
+            List<Map<String, Object>> birdLabels = imageVerificationService.getTopBirdLabels(image);
+            
+            if (birdLabels.isEmpty()) {
+                model.addAttribute("error", "Could not identify any birds in the image. Please try again.");
+                model.addAttribute("bird", bird);
+                model.addAttribute("showClassification", false);
+                return "birds/create";
+            }
+
+            // Save the image and get the URL
+            String imageUrl = imageService.saveImage(image);
+            bird.setImageUrl(imageUrl);
+
+            // Save the bird
+            birdService.createBird(bird, image, currentUser);
+
+            // Structure the classification results
+            Map<String, Object> classificationResults = new HashMap<>();
+            List<Map<String, String>> characteristics = new ArrayList<>();
+            List<String> additionalInfo = new ArrayList<>();
+
+            // Process the first bird label (most confident match)
+            if (!birdLabels.isEmpty()) {
+                Map<String, Object> topMatch = birdLabels.get(0);
+                
+                // Add characteristics
+                if (topMatch.containsKey("characteristics")) {
+                    @SuppressWarnings("unchecked")
+                    Collection<String> chars = (Collection<String>) topMatch.get("characteristics");
+                    for (String characteristic : chars) {
+                        Map<String, String> charMap = new HashMap<>();
+                        charMap.put("name", characteristic);
+                        charMap.put("value", "Detected");
+                        characteristics.add(charMap);
+                    }
                 }
-                return "redirect:/birds/new";
+
+                // Add additional info
+                if (topMatch.containsKey("description")) {
+                    additionalInfo.add((String) topMatch.get("description"));
+                }
+                if (topMatch.containsKey("habitat")) {
+                    additionalInfo.add("Habitat: " + topMatch.get("habitat"));
+                }
+                if (topMatch.containsKey("region")) {
+                    additionalInfo.add("Region: " + topMatch.get("region"));
+                }
             }
 
-            // Validate file
-            if (file.isEmpty()) {
-                redirectAttributes.addFlashAttribute("error", "Please select a file to upload");
-                return "redirect:/birds/new";
-            }
+            classificationResults.put("characteristics", characteristics);
+            classificationResults.put("additionalInfo", additionalInfo);
 
-            // Validate file type
-            String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                redirectAttributes.addFlashAttribute("error", "Only image files are allowed");
-                return "redirect:/birds/new";
-            }
-            
-            // Check if it's a bird image
-            if (!imageVerificationService.isBirdImage(file)) {
-                redirectAttributes.addFlashAttribute("error", "🐦 Oops! That's not a bird! " +
-                    "I'm a bird expert, and I can tell that's not a bird. " +
-                    "Please upload a picture of a bird - we're bird watchers, not logo watchers! 🦅");
-                return "redirect:/birds/new";
-            }
+            // Add success message and classification results to the model
+            model.addAttribute("success", "Bird successfully uploaded!");
+            model.addAttribute("showClassification", true);
+            model.addAttribute("birdLabels", birdLabels);
+            model.addAttribute("classificationResults", classificationResults);
+            model.addAttribute("bird", bird);
 
-            // Save the bird with image through the service layer
-            birdService.createBird(bird, file);
-            
-            return "redirect:/birds";
-        } catch (IOException e) {
-            logger.error("Error creating bird: {}", e.getMessage(), e);
-            redirectAttributes.addFlashAttribute("error", "Failed to upload: " + e.getMessage());
-            return "redirect:/birds/new";
+            return "birds/create";
+        } catch (Exception e) {
+            model.addAttribute("error", "Error uploading bird: " + e.getMessage());
+            model.addAttribute("bird", bird);
+            model.addAttribute("showClassification", false);
+            return "birds/create";
         }
+    }
+
+    private String getScientificName(String commonName) {
+        // This is a placeholder - in a real application, you would have a mapping
+        // of common names to scientific names, possibly from a database
+        return "Scientific name for " + commonName;
     }
 }
