@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.birds</groupId>
 	<artifactId>bird-app</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<name>bird-app</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
@@ -30,6 +30,7 @@
 		<java.version>17</java.version>
 		<node.version>v18.12.0</node.version>
 		<npm.version>8.19.2</npm.version>
+		<byte-buddy.version>1.14.12</byte-buddy.version>
 	</properties>
 
 	<!-- GOOGLE CLOUD BOMs -->
@@ -46,6 +47,12 @@
 	</dependencyManagement>
 
 	<dependencies>
+		<!-- ByteBuddy Dependency -->
+		<dependency>
+			<groupId>net.bytebuddy</groupId>
+			<artifactId>byte-buddy</artifactId>
+		</dependency>
+
 		<!-- GOOGLE CLOUD VISION -->
 		<dependency>
 			<groupId>com.google.cloud</groupId>
@@ -121,9 +128,19 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
