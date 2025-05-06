@@ -13,6 +13,20 @@ phases:
       - find . -name "pom.xml"
       - echo "Moving to directory with pom.xml"
       - cd bird-app
+      - echo "Creating application.properties from environment variables"
+      - cp src/main/resources/application-example.properties src/main/resources/application.properties
+      - sed -i "s/\${RDS_HOSTNAME}/$RDS_HOSTNAME/g" src/main/resources/application.properties
+      - sed -i "s/\${RDS_PORT}/$RDS_PORT/g" src/main/resources/application.properties
+      - sed -i "s/\${RDS_DB_NAME}/$RDS_DB_NAME/g" src/main/resources/application.properties
+      - sed -i "s/\${RDS_USERNAME}/$RDS_USERNAME/g" src/main/resources/application.properties
+      - sed -i "s/\${RDS_PASSWORD}/$RDS_PASSWORD/g" src/main/resources/application.properties
+      - sed -i "s/\${ADMIN_USERNAME}/$ADMIN_USERNAME/g" src/main/resources/application.properties
+      - sed -i "s/\${ADMIN_PASSWORD}/$ADMIN_PASSWORD/g" src/main/resources/application.properties
+      - sed -i "s/\${GOOGLE_CREDENTIALS_PATH}/$GOOGLE_CREDENTIALS_PATH/g" src/main/resources/application.properties
+      - sed -i "s/\${AWS_REGION}/$AWS_REGION/g" src/main/resources/application.properties
+      - sed -i "s/\${S3_BUCKET_NAME}/$S3_BUCKET_NAME/g" src/main/resources/application.properties
+      - sed -i "s/\${AWS_ACCESS_KEY_ID}/$AWS_ACCESS_KEY_ID/g" src/main/resources/application.properties
+      - sed -i "s/\${AWS_SECRET_ACCESS_KEY}/$AWS_SECRET_ACCESS_KEY/g" src/main/resources/application.properties
   build:
     commands:
       - echo Build started on `date`
@@ -30,5 +44,5 @@ phases:
 artifacts:
   base-directory: bird-app/target
   files:
-    - bird-app-0.0.1-SNAPSHOT.jar
+    - bird-app-0.0.2-SNAPSHOT.jar
   discard-paths: yes 
