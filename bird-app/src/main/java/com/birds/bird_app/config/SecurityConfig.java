@@ -40,7 +40,8 @@ public class SecurityConfig {
                 authorizeRequests
                     .requestMatchers("/", "/home", "/index", "/users/register", "/users/loginForm", "/error", "/birds/search").permitAll()
                     .requestMatchers("/css/**", "/js/**", "/images/**", "/uploads/**").permitAll()
-                    .requestMatchers("/api/**").permitAll()
+                    .requestMatchers("/api/birds/*/delete", "/api/birds/*/update").hasRole("ADMIN")
+                    .requestMatchers("/api/birds/**").authenticated()
                     .requestMatchers("/admin/**").hasRole("ADMIN")
                     .requestMatchers("/users/settings/**", "/users/profile/**").authenticated()
                     .anyRequest().authenticated()

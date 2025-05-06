@@ -1,7 +1,7 @@
 package com.birds.bird_app.model;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
 import java.io.Serializable;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -68,11 +68,13 @@ public class UserEntity implements UserDetails, Serializable {
     }
 
     @Override
+    @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role));
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
     @Override
+    @JsonIgnore
     public String getPassword() {
         return password;
     }
@@ -83,21 +85,25 @@ public class UserEntity implements UserDetails, Serializable {
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonExpired() {
         return true;
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonLocked() {
         return true;
     }
 
     @Override
+    @JsonIgnore
     public boolean isCredentialsNonExpired() {
         return true;
     }
 
     @Override
+    @JsonIgnore
     public boolean isEnabled() {
         return enabled;
     }

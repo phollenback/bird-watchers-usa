@@ -8,6 +8,9 @@ import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +26,41 @@ public class ImageVerificationService {
 
     @Autowired
     private BirdSpeciesRepository birdSpeciesRepository;
+
+    @Autowired
+    private Environment environment;
+
+    @Autowired
+    private ResourceLoader resourceLoader;
+
+    @Value("${spring.cloud.gcp.credentials.location:}")
+    private String credentialsLocation;
+
+    private ImageAnnotatorClient visionClient;
+
+    private GoogleCredentials getCredentials() throws IOException {
+        // First try to get credentials from environment variable
+        String credentialsJson = environment.getProperty("GOOGLE_APPLICATION_CREDENTIALS_JSON");
+        if (credentialsJson != null && !credentialsJson.isEmpty()) {
+            logger.info("Loading Google Cloud credentials from environment variable");
+            return GoogleCredentials.fromStream(new java.io.ByteArrayInputStream(credentialsJson.getBytes()));
+        }
+
+        // If not in environment, try to load from file
+        if (credentialsLocation != null && !credentialsLocation.isEmpty()) {
+            logger.info("Loading Google Cloud credentials from file: {}", credentialsLocation);
+            try (InputStream credentialsStream = resourceLoader.getResource(credentialsLocation).getInputStream()) {
+                return GoogleCredentials.fromStream(credentialsStream);
+            } catch (IOException e) {
+                logger.error("Failed to load credentials from file: {}", credentialsLocation, e);
+                throw e;
+            }
+        }
+
+        // If no credentials found, try application default credentials
+        logger.info("Attempting to use application default credentials");
+        return GoogleCredentials.getApplicationDefault();
+    }
 
     public boolean isBirdImage(MultipartFile file) throws IOException {
         logger.info("Starting image verification for file: {}", file.getOriginalFilename());
@@ -63,22 +101,19 @@ public class ImageVerificationService {
     private List<EntityAnnotation> getVisionApiResponse(MultipartFile file) throws IOException {
         logger.info("Sending request to Google Cloud Vision API");
         
-        // Load credentials from the classpath resource
-        GoogleCredentials credentials;
-        try (InputStream credentialsStream = getClass().getResourceAsStream("/silicon-window-458303-i9-0ab54f3503d1.json")) {
-            if (credentialsStream == null) {
-                throw new IOException("Could not find credentials file in classpath");
-            }
-            credentials = GoogleCredentials.fromStream(credentialsStream);
-            logger.info("Successfully loaded credentials from classpath");
-        }
+        try {
+            if (visionClient == null) {
+                GoogleCredentials credentials = getCredentials();
+                logger.info("Successfully loaded Google Cloud credentials");
 
-        // Create the ImageAnnotatorSettings with explicit credentials
-        ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
-            .setCredentialsProvider(() -> credentials)
-            .build();
-        
-        try (ImageAnnotatorClient vision = ImageAnnotatorClient.create(settings)) {
+                // Create the ImageAnnotatorSettings with explicit credentials
+                ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
+                    .setCredentialsProvider(() -> credentials)
+                    .build();
+                
+                visionClient = ImageAnnotatorClient.create(settings);
+            }
+
             ByteString imgBytes = ByteString.copyFrom(file.getBytes());
             Image img = Image.newBuilder().setContent(imgBytes).build();
             Feature feat = Feature.newBuilder().setType(Feature.Type.LABEL_DETECTION).build();
@@ -87,7 +122,7 @@ public class ImageVerificationService {
                     .setImage(img)
                     .build();
 
-            BatchAnnotateImagesResponse response = vision.batchAnnotateImages(List.of(request));
+            BatchAnnotateImagesResponse response = visionClient.batchAnnotateImages(List.of(request));
             List<AnnotateImageResponse> responses = response.getResponsesList();
 
             if (responses.isEmpty()) {
@@ -95,7 +130,15 @@ public class ImageVerificationService {
             }
             
             return responses.get(0).getLabelAnnotationsList();
+        } catch (Exception e) {
+            logger.error("Error during Vision API request: {}", e.getMessage(), e);
+            throw new IOException("Failed to process image with Vision API: " + e.getMessage(), e);
         }
+    }
+
+    // For testing purposes
+    void setVisionClient(ImageAnnotatorClient client) {
+        this.visionClient = client;
     }
 
     private boolean isBirdRelated(String label) {

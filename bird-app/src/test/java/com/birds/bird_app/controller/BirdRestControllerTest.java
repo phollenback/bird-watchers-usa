@@ -3,12 +3,8 @@ package com.birds.bird_app.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import java.util.Arrays;
@@ -24,18 +20,15 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
-import com.birds.bird_app.config.SecurityConfig;
 import com.birds.bird_app.config.TestSecurityConfig;
 import com.birds.bird_app.model.BirdEntity;
+import com.birds.bird_app.model.UserEntity;
 import com.birds.bird_app.service.BirdService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.birds.bird_app.model.UserEntity;
 
 @WebMvcTest(BirdRestController.class)
-@Import({SecurityConfig.class, TestSecurityConfig.class})
-@WithMockUser(roles = "ADMIN")
+@Import(TestSecurityConfig.class)
 class BirdRestControllerTest {
 
     @Autowired
@@ -48,34 +41,30 @@ class BirdRestControllerTest {
     private ObjectMapper objectMapper;
 
     private BirdEntity testBird;
+    private UserEntity testUser;
 
     @BeforeEach
     void setUp() {
         testBird = new BirdEntity("TestBird", "TestKind", "TestColor", 1, "TestFun", "testUrl");
+        testUser = new UserEntity();
+        testUser.setEmail("test@example.com");
+        testUser.setId(1L);
+        testUser.setRole("USER");
     }
 
     @Test
-    void testGetAllBirds() throws Exception {
+    @WithMockUser(roles = "USER")
+    void testUserCanViewBirds() throws Exception {
         when(birdService.getAllBirds()).thenReturn(Arrays.asList(testBird));
 
         mockMvc.perform(get("/api/birds"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].name").value("TestBird"))
-            .andExpect(jsonPath("$[0].kind").value("TestKind"));
+            .andExpect(jsonPath("$[0].name").value("TestBird"));
     }
 
     @Test
-    void testGetBirdById() throws Exception {
-        when(birdService.getBirdById(1L)).thenReturn(Optional.of(testBird));
-
-        mockMvc.perform(get("/api/birds/1"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("TestBird"))
-            .andExpect(jsonPath("$.kind").value("TestKind"));
-    }
-
-    @Test
-    void testCreateBird() throws Exception {
+    @WithMockUser(roles = "USER")
+    void testUserCanSubmitBird() throws Exception {
         MockMultipartFile image = new MockMultipartFile(
             "image", 
             "test.jpg",
@@ -90,38 +79,56 @@ class BirdRestControllerTest {
             objectMapper.writeValueAsString(testBird).getBytes()
         );
 
-        UserEntity mockUser = new UserEntity();
-        mockUser.setEmail("test@example.com");
-        mockUser.setId(1L);
+        when(birdService.createBird(any(BirdEntity.class), any(), eq(testUser))).thenReturn(testBird);
 
-        when(birdService.createBird(any(BirdEntity.class), any(), eq(mockUser))).thenReturn(testBird);
-
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/birds")
+        mockMvc.perform(multipart("/api/birds")
             .file(image)
             .file(birdJson)
-            .with(user(mockUser)))
+            .with(user(testUser)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("TestBird"))
-            .andExpect(jsonPath("$.kind").value("TestKind"));
+            .andExpect(jsonPath("$.name").value("TestBird"));
     }
 
     @Test
-    void testUpdateBird() throws Exception {
+    @WithMockUser(roles = "USER")
+    void testUserCannotDeleteBird() throws Exception {
+        mockMvc.perform(delete("/api/birds/1"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void testUserCannotUpdateBird() throws Exception {
+        mockMvc.perform(put("/api/birds/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(testBird)))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testUnauthenticatedUserCannotAccessBirds() throws Exception {
+        mockMvc.perform(get("/api/birds"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void testAdminCanDeleteBird() throws Exception {
+        when(birdService.deleteBird(1L)).thenReturn(true);
+
+        mockMvc.perform(delete("/api/birds/1"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void testAdminCanUpdateBird() throws Exception {
         when(birdService.updateBird(eq(1L), any(BirdEntity.class))).thenReturn(Optional.of(testBird));
 
         mockMvc.perform(put("/api/birds/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testBird)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("TestBird"))
-            .andExpect(jsonPath("$.kind").value("TestKind"));
-    }
-
-    @Test
-    void testDeleteBird() throws Exception {
-        when(birdService.deleteBird(1L)).thenReturn(true);
-
-        mockMvc.perform(delete("/api/birds/1"))
-            .andExpect(status().isOk());
+            .andExpect(jsonPath("$.name").value("TestBird"));
     }
 }

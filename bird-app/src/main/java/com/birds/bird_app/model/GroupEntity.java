@@ -68,6 +68,15 @@ public class GroupEntity {
     @OneToMany(mappedBy = "group", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private List<GroupMember> members = new ArrayList<>();
 
+    @OneToMany(mappedBy = "group", fetch = FetchType.LAZY)
+    private List<BirdSubmission> birdSubmissions = new ArrayList<>();
+
+    public int getActiveBirdCount() {
+        return (int) birdSubmissions.stream()
+            .filter(submission -> "ACTIVE".equals(submission.getStatus()))
+            .count();
+    }
+
     public GroupSettings getSettings() {
         return settings;
     }
