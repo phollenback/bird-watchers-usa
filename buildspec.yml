@@ -28,7 +28,7 @@ phases:
       - ls -la target/
 
 artifacts:
-  base-directory: bird-app/target
+  base-directory: target
   files:
-    - bird-app-0.0.1-SNAPSHOT.jar
+    - bird-app-0.0.2-SNAPSHOT.jar
   discard-paths: yes 
