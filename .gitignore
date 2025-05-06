@@ -127,4 +127,5 @@ coverage.xml
 
 # Sensitive files
 bird-app/src/main/resources/application.properties
-bird-app/src/main/resources/silicon-window-458303-i9-3087fdfcbc96.json 
+bird-app/src/main/resources/silicon-window-458303-i9-3087fdfcbc96.json
+bird-app/src/main/resources/keystore.p12 
