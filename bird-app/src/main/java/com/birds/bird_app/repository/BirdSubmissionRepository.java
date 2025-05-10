@@ -13,5 +13,9 @@ import com.birds.bird_app.model.UserEntity;
 @Repository
 public interface BirdSubmissionRepository extends JpaRepository<BirdSubmission, Long> {
     List<BirdSubmission> findByGroupAndStatusOrderByVotesDescSubmittedAtDesc(GroupEntity group, String status);
-    Optional<BirdSubmission> findByGroupAndStatusAndSubmittedBy(GroupEntity group, String status, UserEntity user);
+    Optional<BirdSubmission> findByGroupAndStatusAndSubmittedBy(GroupEntity group, String status, UserEntity submittedBy);
+    List<BirdSubmission> findByStatus(String status);
+    List<BirdSubmission> findByGroupAndStatus(GroupEntity group, String status);
+    List<BirdSubmission> findByGroupAndStatusAndIsBigBirdTrueOrderBySubmittedAtDesc(GroupEntity group, String status);
+    List<BirdSubmission> findByGroupAndStatusInOrderByVotesDescSubmittedAtDesc(GroupEntity group, List<String> statuses);
 } 

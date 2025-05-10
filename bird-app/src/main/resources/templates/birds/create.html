@@ -66,11 +66,20 @@
 
                             <div class="mb-4">
                                 <label class="form-label">Bird Photo</label>
-                                <div class="input-group">
-                                    <input type="file" class="form-control" id="image" name="image" accept="image/*">
-                                    <label class="input-group-text" for="image">Upload</label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-trigger">
+                                        <i class="bi bi-camera"></i>
+                                        <p class="mb-0">Tap to take or select a photo</p>
+                                    </div>
+                                    <input type="file" 
+                                           class="form-control" 
+                                           id="image" 
+                                           name="image" 
+                                           accept="image/*"
+                                           placeholder="Tap to take or select a photo">
                                 </div>
-                                <div class="form-text">Max file size: 5MB. Supported formats: JPG, PNG</div>
+                                <img id="imagePreview" class="image-preview mt-2" alt="Preview">
+                                <div class="form-text">Max file size: 15MB. Supported formats: JPG, PNG</div>
                             </div>
 
                             <div class="d-flex justify-content-end">
@@ -208,6 +217,41 @@
                 }, false)
             })
         })()
+
+        // Image preview and validation
+        document.getElementById('image').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            const maxSize = 15 * 1024 * 1024; // 15MB
+            
+            if (file) {
+                // Check file size
+                if (file.size > maxSize) {
+                    alert('File size must be less than 15MB');
+                    this.value = '';
+                    preview.style.display = 'none';
+                    return;
+                }
+                
+                // Check file type
+                if (!file.type.startsWith('image/')) {
+                    alert('Please select an image file');
+                    this.value = '';
+                    preview.style.display = 'none';
+                    return;
+                }
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html> 

@@ -48,7 +48,9 @@ public class UserActivityService {
         activity.setGroup(group);
         activity.setType("GROUP_SUBMISSION");
         activity.setDescription("Submitted " + birdName + " to " + group.getName());
-        activity.setActivityUrl(submissionUrl);
+        if (submissionUrl != null && !submissionUrl.startsWith("/groups/")) {
+            activity.setActivityUrl(submissionUrl);
+        }
         activity.setCreatedAt(LocalDateTime.now());
         userActivityRepository.save(activity);
     }

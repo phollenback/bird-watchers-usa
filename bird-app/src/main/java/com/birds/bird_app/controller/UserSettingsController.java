@@ -30,6 +30,10 @@ public class UserSettingsController {
         }
 
         UserSettings settings = userSettingsService.getUserSettings(user.getId());
+        // Set settings in the user object
+        user.setSettings(settings);
+        // Update user in session
+        session.setAttribute("user", user);
         model.addAttribute("user", user);
         model.addAttribute("settings", settings);
         return "users/settings";
@@ -52,8 +56,9 @@ public class UserSettingsController {
         settings.setIsPublic(isPublic);
         userSettingsService.updateUserSettings(settings);
 
-        // Update session with new settings
-        session.setAttribute("userSettings", settings);
+        // Update settings in the user object and session
+        user.setSettings(settings);
+        session.setAttribute("user", user);
         
         redirectAttributes.addFlashAttribute("successMessage", "Settings updated successfully!");
         return "redirect:/users/settings";

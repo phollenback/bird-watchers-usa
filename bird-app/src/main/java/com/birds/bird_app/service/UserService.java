@@ -7,6 +7,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class UserService {
@@ -19,6 +21,8 @@ public class UserService {
 
     @Autowired
     private S3Service s3Service;
+
+    private static final Pattern S3_KEY_PATTERN = Pattern.compile("/([^/]+)$");
 
     public UserEntity getUserById(Long id) {
         return userRepository.findById(id)
@@ -53,5 +57,21 @@ public class UserService {
         }
 
         userRepository.save(user);
+    }
+
+    public String getProfilePictureUrl(UserEntity user) {
+        if (user == null || user.getProfilePictureUrl() == null) {
+            return null;
+        }
+
+        String url = user.getProfilePictureUrl();
+        
+        // If the stored value is already a URL (contains http), return it
+        if (url.startsWith("http")) {
+            return url;
+        }
+
+        // Otherwise, treat it as a file key and get a fresh presigned URL
+        return s3Service.getPresignedUrl(url);
     }
 } 

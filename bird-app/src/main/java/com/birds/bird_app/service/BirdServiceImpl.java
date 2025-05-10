@@ -60,11 +60,18 @@ public class BirdServiceImpl implements BirdService {
             }
             
             logger.info("Image verified as bird, proceeding with S3 upload");
-            String imageUrl = s3Service.uploadFile(image);
-            logger.info("Image uploaded to S3, URL: {}", imageUrl);
+            String fileKey = s3Service.uploadFile(image);
+            logger.info("Image uploaded to S3, file key: {}", fileKey);
+            
+            // Get the presigned URL for the uploaded file
+            String imageUrl = s3Service.getPresignedUrl(fileKey);
+            logger.info("Generated presigned URL for image: {}", imageUrl);
+            
+            // Set the full presigned URL
             bird.setImageUrl(imageUrl);
         } else {
-            logger.info("No image provided for bird: {}", bird.getName());
+            logger.warn("No image provided for bird: {}", bird.getName());
+            throw new IOException("An image is required to create a bird.");
         }
         
         // Set the user who created the bird

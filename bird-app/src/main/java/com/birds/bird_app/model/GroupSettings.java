@@ -1,8 +1,11 @@
 package com.birds.bird_app.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import org.hibernate.validator.constraints.URL;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -12,21 +15,25 @@ public class GroupSettings {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Region is required")
     @Column(name = "region")
     private String region;
 
-    @URL
+    @URL(message = "Image URL must be a valid URL")
     @Column(name = "group_image_url", length = 1000)
     private String groupImageUrl;
 
+    @NotNull(message = "Visibility type is required")
     @Column(name = "visibility_type")
     @Enumerated(EnumType.STRING)
     private VisibilityType visibilityType = VisibilityType.PUBLIC;
 
+    @NotNull(message = "Meeting frequency is required")
     @Column(name = "meeting_frequency")
     @Enumerated(EnumType.STRING)
     private MeetingFrequency meetingFrequency = MeetingFrequency.WEEKLY;
 
+    @NotNull(message = "Seasonal activity is required")
     @Column(name = "seasonal_activity")
     @Enumerated(EnumType.STRING)
     private Season seasonalActivity = Season.SPRING;
@@ -43,8 +50,12 @@ public class GroupSettings {
     @Column(name = "auto_approve_membership")
     private boolean autoApproveMembership = true;
 
+    @NotBlank(message = "Theme is required")
     @Column(name = "theme")
     private String theme = "forest";
+
+    @Column(name = "current_meeting_started_at")
+    private LocalDateTime currentMeetingStartedAt;
 
     @OneToOne(mappedBy = "settings")
     private GroupEntity group;
@@ -150,6 +161,14 @@ public class GroupSettings {
 
     public void setGroupImageUrl(String groupImageUrl) {
         this.groupImageUrl = groupImageUrl;
+    }
+
+    public LocalDateTime getCurrentMeetingStartedAt() {
+        return currentMeetingStartedAt;
+    }
+
+    public void setCurrentMeetingStartedAt(LocalDateTime currentMeetingStartedAt) {
+        this.currentMeetingStartedAt = currentMeetingStartedAt;
     }
 
     @Override

@@ -44,6 +44,10 @@
             <div class="row">
                 <div class="col-12">
                     <div class="card shadow-sm">
+                        <!-- Add Group Cover Image -->
+                        <div th:if="${group.settings.groupImageUrl}" class="card-img-top position-relative" style="height: 200px; overflow: hidden;">
+                            <img th:src="${group.settings.groupImageUrl}" class="w-100 h-100" style="object-fit: cover;" alt="Group Cover">
+                        </div>
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <div>
@@ -96,6 +100,43 @@
                                 </div>
                             </div>
 
+                            <!-- Big Bird Section -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-warning">
+                                    <h5 class="card-title mb-0">
+                                        <i class="bi bi-trophy-fill me-2"></i>Big Bird of the Week
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div th:if="${currentSubmissions != null && !currentSubmissions.isEmpty() && currentSubmissions[0].bigBird}" 
+                                         class="text-center">
+                                        <div class="position-relative d-inline-block mb-3">
+                                            <img th:src="${currentSubmissions[0].imageUrl}" 
+                                                 class="rounded-circle" 
+                                                 style="width: 200px; height: 200px; object-fit: cover;"
+                                                 alt="Big Bird">
+                                            <div class="position-absolute top-0 start-50 translate-middle">
+                                                <span class="badge bg-warning text-dark p-2">
+                                                    <i class="bi bi-trophy-fill"></i> Big Bird
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <h4 th:text="${currentSubmissions[0].birdName}">Bird Name</h4>
+                                        <p class="text-muted">
+                                            Submitted by <span th:text="${currentSubmissions[0].submittedBy.name}">username</span>
+                                            <br>
+                                            <span class="badge bg-primary">
+                                                <i class="bi bi-heart-fill"></i> <span th:text="${currentSubmissions[0].votes}">0</span> votes
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div th:if="${currentSubmissions == null || currentSubmissions.isEmpty() || !currentSubmissions[0].bigBird}" 
+                                         class="text-center text-muted py-3">
+                                        No Big Bird yet for this week
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Members Section -->
                             <div class="card mb-4">
                                 <div class="card-header">
@@ -123,7 +164,7 @@
                                             <div class="d-flex align-items-center p-2 border rounded">
                                                 <i class="bi bi-person-circle fs-4 me-2"></i>
                                                 <div>
-                                                    <div class="fw-bold" th:text="${member.name}">Member Name</div>
+                                                    <div class="fw-bold" th:text="${member.user.name}">Member Name</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -248,13 +289,20 @@
                                                         </div>
                                                         <div class="mb-3">
                                                             <label for="birdImage" class="form-label">Upload New Bird Photo</label>
+                                                            <div class="file-input-wrapper">
+                                                                <div class="file-input-trigger">
+                                                                    <i class="bi bi-camera"></i>
+                                                                    <p class="mb-0">Tap to take or select a photo</p>
+                                                                </div>
                                                             <input type="file" 
                                                                    class="form-control" 
                                                                    id="birdImage" 
                                                                    name="birdImage" 
                                                                    accept="image/*" 
                                                                    required>
-                                                            <div class="form-text">Max file size: 5MB. Supported formats: JPG, PNG</div>
+                                                            </div>
+                                                            <img id="imagePreview" class="image-preview mt-2" alt="Preview">
+                                                            <div class="form-text">Max file size: 15MB. Supported formats: JPG, PNG</div>
                                                             <div class="invalid-feedback">Please select an image file.</div>
                                                         </div>
                                                         <button type="submit" class="btn btn-primary w-100">
@@ -271,6 +319,42 @@
                                                     </div>
 
                                                     <script>
+                                                        // Image preview and validation
+                                                        document.getElementById('birdImage').addEventListener('change', function(e) {
+                                                            const file = e.target.files[0];
+                                                            const preview = document.getElementById('imagePreview');
+                                                            const maxSize = 15 * 1024 * 1024; // 15MB
+                                                            
+                                                            if (file) {
+                                                                // Check file size
+                                                                if (file.size > maxSize) {
+                                                                    alert('File size must be less than 15MB');
+                                                                    this.value = '';
+                                                                    preview.style.display = 'none';
+                                                                    return;
+                                                                }
+                                                                
+                                                                // Check file type
+                                                                if (!file.type.startsWith('image/')) {
+                                                                    alert('Please select an image file');
+                                                                    this.value = '';
+                                                                    preview.style.display = 'none';
+                                                                    return;
+                                                                }
+                                                                
+                                                                // Show preview
+                                                                const reader = new FileReader();
+                                                                reader.onload = function(e) {
+                                                                    preview.src = e.target.result;
+                                                                    preview.style.display = 'block';
+                                                                }
+                                                                reader.readAsDataURL(file);
+                                                            } else {
+                                                                preview.style.display = 'none';
+                                                            }
+                                                        });
+
+                                                        // Form submission handling
                                                         document.querySelector('form').addEventListener('submit', function() {
                                                             document.querySelector('#uploadSpinner').classList.remove('d-none');
                                                             document.querySelector('button[type="submit"]').disabled = true;
@@ -332,7 +416,7 @@
                                                                                 <i class="bi bi-heart-fill"></i> <span th:text="${submission.votes}">0</span> votes
                                                                             </span>
                                                                             <!-- Vote Button - Only show if user is a member and hasn't voted -->
-                                                                            <form th:if="${isMember && !hasVoted}"
+                                                                            <form th:if="${isMember && !submission.hasVoted}"
                                                                                   th:action="@{/groups/{id}/vote/{submissionId}(id=${group.id}, submissionId=${submission.id})}"
                                                                                   method="POST"
                                                                                   style="display: inline;"

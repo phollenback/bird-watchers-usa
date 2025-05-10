@@ -20,7 +20,7 @@ public class BirdSubmission {
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity submittedBy;
 
-    @Column(nullable = false)
+    @Column(name = "image_url", nullable = false)
     private String imageUrl;
 
     @Column(nullable = false)
@@ -35,6 +35,9 @@ public class BirdSubmission {
     @Column(nullable = false)
     private String birdName;
 
+    @Column(name = "is_big_bird", nullable = false)
+    private boolean isBigBird = false;
+
     @ManyToMany
     @JoinTable(
         name = "submission_votes",
@@ -42,6 +45,19 @@ public class BirdSubmission {
         inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     private Set<UserEntity> votedBy = new HashSet<>();
+
+    @Transient
+    private boolean hasVoted = false;
+
+    // Default constructor with initialization
+    public BirdSubmission() {
+        this.votedBy = new HashSet<>();
+        this.votes = 0;
+        this.isBigBird = false;
+        this.submittedAt = LocalDateTime.now();
+        this.status = "ACTIVE";
+        this.hasVoted = false;
+    }
 
     // Getters and Setters
     public Long getId() {
@@ -108,11 +124,27 @@ public class BirdSubmission {
         this.birdName = birdName;
     }
 
+    public boolean isBigBird() {
+        return isBigBird;
+    }
+
+    public void setBigBird(boolean isBigBird) {
+        this.isBigBird = isBigBird;
+    }
+
     public Set<UserEntity> getVotedBy() {
         return votedBy;
     }
 
     public void setVotedBy(Set<UserEntity> votedBy) {
         this.votedBy = votedBy;
+    }
+
+    public boolean isHasVoted() {
+        return hasVoted;
+    }
+
+    public void setHasVoted(boolean hasVoted) {
+        this.hasVoted = hasVoted;
     }
 } 

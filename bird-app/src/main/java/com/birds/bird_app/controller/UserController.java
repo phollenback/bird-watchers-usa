@@ -18,6 +18,7 @@ import com.birds.bird_app.model.UserEntity;
 import com.birds.bird_app.repository.UserRepository;
 import com.birds.bird_app.service.S3Service;
 import com.birds.bird_app.service.UserActivityService;
+import com.birds.bird_app.service.UserService;
 
 import jakarta.validation.Valid;
 
@@ -38,16 +39,19 @@ public class UserController {
     private final PasswordEncoder passwordEncoder;
     private final S3Service s3Service;
     private final UserActivityService userActivityService;
+    private final UserService userService;
 
     @Autowired
     public UserController(UserRepository userRepository, 
                          PasswordEncoder passwordEncoder,
                          S3Service s3Service,
-                         UserActivityService userActivityService) {
+                         UserActivityService userActivityService,
+                         UserService userService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.s3Service = s3Service;
         this.userActivityService = userActivityService;
+        this.userService = userService;
     }
 
     @GetMapping("/loginForm")
@@ -71,47 +75,34 @@ public class UserController {
                              RedirectAttributes redirectAttributes) {
         logger.info("Attempting to register user: {}", user.getEmail());
         
-        try {
-            // Validate input
-            if (bindingResult.hasErrors()) {
-                logger.warn("Registration validation errors: {}", bindingResult.getAllErrors());
-                model.addAttribute("error", "Please correct the errors in the form");
-                return "users/registerForm";
-            }
-
-            // Check password length
-            if (user.getPassword() == null || user.getPassword().length() < 6) {
-                logger.warn("Password too short for user: {}", user.getEmail());
-                model.addAttribute("error", "Password must be at least 6 characters long");
-                return "users/registerForm";
-            }
-
-            // Check if user already exists
-            if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-                logger.warn("User already exists: {}", user.getEmail());
-                model.addAttribute("error", "An account with this email already exists");
-                return "users/registerForm";
-            }
-
-            // Encode password and save user
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-            user.setRole("ROLE_USER");
-            user.setEnabled(true);
-            
-            logger.info("Saving new user: {}", user.getEmail());
-            userRepository.save(user);
-            
-            logger.info("Successfully registered user: {}", user.getEmail());
-
-            // Add success message for the login page
-            redirectAttributes.addFlashAttribute("message", "Registration successful! Please login.");
-            return "redirect:/users/loginForm";
-            
-        } catch (Exception e) {
-            logger.error("Error during registration for user: " + user.getEmail(), e);
-            model.addAttribute("error", "An error occurred during registration. Please try again.");
+        if (bindingResult.hasErrors()) {
+            logger.warn("Registration validation errors: {}", bindingResult.getAllErrors());
+            model.addAttribute("error", "Please correct the errors in the form");
             return "users/registerForm";
         }
+
+        if (user.getPassword() == null || user.getPassword().length() < 6) {
+            logger.warn("Password too short for user: {}", user.getEmail());
+            model.addAttribute("error", "Password must be at least 6 characters long");
+            return "users/registerForm";
+        }
+
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            logger.warn("User already exists: {}", user.getEmail());
+            model.addAttribute("error", "An account with this email already exists");
+            return "users/registerForm";
+        }
+
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setRole("ROLE_USER");
+        user.setEnabled(true);
+        
+        logger.info("Saving new user: {}", user.getEmail());
+        userRepository.save(user);
+        
+        logger.info("Successfully registered user: {}", user.getEmail());
+        redirectAttributes.addFlashAttribute("message", "Registration successful! Please login.");
+        return "redirect:/users/loginForm";
     }
 
     @GetMapping("/profile")
@@ -124,6 +115,7 @@ public class UserController {
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         model.addAttribute("user", user);
+        model.addAttribute("userService", userService);
         model.addAttribute("recentActivity", userActivityService.getRecentActivities(user));
         session.setAttribute("user", user);
         return "users/profile";
@@ -136,64 +128,48 @@ public class UserController {
                               @RequestParam(value = "currentPassword", required = false) String currentPassword,
                               @RequestParam(value = "newPassword", required = false) String newPassword,
                               Principal principal,
-                              RedirectAttributes redirectAttributes) {
-        try {
-            logger.info("Starting profile update for user: {}", principal.getName());
-            
-            UserEntity user = userRepository.findByEmail(principal.getName())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                              HttpSession session,
+                              RedirectAttributes redirectAttributes) throws IOException {
+        logger.info("Starting profile update for user: {}", principal.getName());
+        
+        UserEntity user = userRepository.findByEmail(principal.getName())
+            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-            // Update basic info
-            user.setName(name);
-            user.setEmail(email);
+        user.setName(name);
+        user.setEmail(email);
 
-            // Handle password change if provided
-            if (currentPassword != null && !currentPassword.isEmpty() && 
-                newPassword != null && !newPassword.isEmpty()) {
-                if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-                    redirectAttributes.addFlashAttribute("error", "Current password is incorrect");
-                    return "redirect:/users/profile";
-                }
-                user.setPassword(passwordEncoder.encode(newPassword));
+        if (currentPassword != null && !currentPassword.isEmpty() && 
+            newPassword != null && !newPassword.isEmpty()) {
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                redirectAttributes.addFlashAttribute("error", "Current password is incorrect");
+                return "redirect:/users/settings";
             }
-
-            // Handle profile picture if provided
-            if (file != null && !file.isEmpty()) {
-                logger.info("Processing profile picture upload for user: {}", user.getEmail());
-                logger.info("File details - Name: {}, Size: {} bytes, Content Type: {}", 
-                    file.getOriginalFilename(), file.getSize(), file.getContentType());
-                
-                // Validate file type
-                String contentType = file.getContentType();
-                if (contentType == null || !contentType.startsWith("image/")) {
-                    logger.warn("Invalid file type uploaded: {}", contentType);
-                    redirectAttributes.addFlashAttribute("error", "Only image files are allowed");
-                    return "redirect:/users/profile";
-                }
-                
-                try {
-                    String imageUrl = s3Service.uploadFile(file);
-                    logger.info("Profile picture uploaded successfully to S3, URL: {}", imageUrl);
-                    user.setProfilePictureUrl(imageUrl);
-                } catch (IOException e) {
-                    logger.error("Error uploading profile picture: {}", e.getMessage(), e);
-                    redirectAttributes.addFlashAttribute("error", "Error uploading profile picture");
-                    return "redirect:/users/profile";
-                }
-            }
-
-            logger.info("Saving updated user profile to database");
-            UserEntity savedUser = userRepository.save(user);
-            logger.info("User profile saved to database. ID: {}, Name: {}, ProfilePictureUrl: {}", 
-                savedUser.getId(), savedUser.getName(), savedUser.getProfilePictureUrl());
-            
-            redirectAttributes.addFlashAttribute("success", "Profile updated successfully");
-            return "redirect:/";
-            
-        } catch (Exception e) {
-            logger.error("Error updating profile", e);
-            redirectAttributes.addFlashAttribute("error", "Error updating profile");
-            return "redirect:/users/profile";
+            user.setPassword(passwordEncoder.encode(newPassword));
         }
+
+        if (file != null && !file.isEmpty()) {
+            logger.info("Processing profile picture upload for user: {}", user.getEmail());
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                redirectAttributes.addFlashAttribute("error", "Only image files are allowed");
+                return "redirect:/users/settings";
+            }
+            
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String uploadedKey = s3Service.uploadFile(file, fileName);
+            logger.info("Profile picture uploaded successfully to S3, file key: {}", uploadedKey);
+            String presignedUrl = s3Service.getPresignedUrl(uploadedKey);
+            logger.info("Generated presigned URL for profile picture: {}", presignedUrl);
+            user.setProfilePictureUrl(presignedUrl);
+        }
+
+        logger.info("Saving updated user profile to database");
+        userRepository.save(user);
+        
+        // Update session with new user data
+        session.setAttribute("user", user);
+        
+        redirectAttributes.addFlashAttribute("success", "Profile updated successfully");
+        return "redirect:/users/settings";
     }
 }

@@ -90,7 +90,7 @@ public class BirdController {
             bird.setImageUrl(imageUrl);
 
             // Save the bird
-            birdService.createBird(bird, image, currentUser);
+            BirdEntity savedBird = birdService.createBird(bird, image, currentUser);
 
             // Structure the classification results
             Map<String, Object> classificationResults = new HashMap<>();
@@ -133,7 +133,7 @@ public class BirdController {
             model.addAttribute("showClassification", true);
             model.addAttribute("birdLabels", birdLabels);
             model.addAttribute("classificationResults", classificationResults);
-            model.addAttribute("bird", bird);
+            model.addAttribute("bird", savedBird);
 
             return "birds/create";
         } catch (Exception e) {

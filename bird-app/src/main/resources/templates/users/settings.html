@@ -22,9 +22,20 @@
                                 
                                 <!-- Profile Picture -->
                                 <div class="mb-3">
-                                    <label for="profilePicture" class="form-label">Profile Picture</label>
-                                    <input type="file" class="form-control" id="profilePicture" name="profilePicture" accept="image/*">
-                                    <div class="form-text">Upload a new profile picture (max 5MB)</div>
+                                    <label for="file" class="form-label">Profile Picture</label>
+                                    <div class="file-input-wrapper">
+                                        <div class="file-input-trigger">
+                                            <i class="bi bi-person-circle"></i>
+                                            <p class="mb-0">Tap to take or select a photo</p>
+                                        </div>
+                                        <input type="file" 
+                                               class="form-control" 
+                                               id="file" 
+                                               name="file" 
+                                               accept="image/*">
+                                    </div>
+                                    <img id="imagePreview" class="image-preview mt-2" alt="Preview">
+                                    <div class="form-text">Upload a new profile picture (max 15MB)</div>
                                 </div>
 
                                 <!-- Name -->
@@ -110,14 +121,37 @@
 
     <script th:inline="javascript">
         // Preview profile picture before upload
-        document.getElementById('profilePicture').addEventListener('change', function(e) {
+        document.getElementById('file').addEventListener('change', function(e) {
             const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            const maxSize = 15 * 1024 * 1024; // 15MB
+            
             if (file) {
-                if (file.size > 5 * 1024 * 1024) { // 5MB
-                    alert('File size must be less than 5MB');
-                    e.target.value = '';
+                // Check file size
+                if (file.size > maxSize) {
+                    alert('File size must be less than 15MB');
+                    this.value = '';
+                    preview.style.display = 'none';
                     return;
                 }
+                
+                // Check file type
+                if (!file.type.startsWith('image/')) {
+                    alert('Please select an image file');
+                    this.value = '';
+                    preview.style.display = 'none';
+                    return;
+                }
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
             }
         });
 

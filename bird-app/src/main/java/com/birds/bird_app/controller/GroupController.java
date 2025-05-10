@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.HashSet;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpSession;
@@ -87,6 +89,14 @@ public class GroupController {
         }
         
         List<GroupEntity> groups = groupRepository.findAll();
+
+        // Get fresh presigned URLs for all group images
+        for (GroupEntity group : groups) {
+            if (group.getSettings() != null && group.getSettings().getGroupImageUrl() != null) {
+                String freshUrl = s3Service.getPresignedUrl(group.getSettings().getGroupImageUrl());
+                group.getSettings().setGroupImageUrl(freshUrl);
+            }
+        }
 
         if (search != null && !search.isEmpty()) {
             groups = groups.stream()
@@ -159,79 +169,87 @@ public class GroupController {
     }
 
     @GetMapping("/{id}")
-    public String viewGroup(@PathVariable Long id, Model model, @AuthenticationPrincipal UserEntity currentUser) {
+    public String getGroupHome(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserEntity currentUser,
+            Model model) {
+        
         try {
-            System.out.println("Attempting to load group with ID: " + id);
-            
             GroupEntity group = groupRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
-            
-            System.out.println("Found group: " + group.getName());
-                
-            // Initialize settings if null
-            if (group.getSettings() == null) {
-                System.out.println("Group settings were null, initializing new settings");
-                group.setSettings(new GroupSettings());
-            }
-            
-            // Check if current user is a member
-            boolean isMember = false;
-            boolean isAdmin = false;
-            if (currentUser != null) {
-                Optional<GroupMember> memberOpt = groupMemberRepository.findByUserAndGroup(currentUser, group);
-                isMember = memberOpt.isPresent();
-                isAdmin = memberOpt.map(member -> 
-                    member.getRole().equals("FOUNDER") || 
-                    member.getRole().equals("ADMIN") || 
-                    currentUser.equals(group.getBirdKeeper())
-                ).orElse(false);
-            }
-            model.addAttribute("isMember", isMember);
-            model.addAttribute("isAdmin", isAdmin);
-                
-            // Get members
-            List<UserEntity> members = group.getMembers().stream()
-                .map(GroupMember::getUser)
-                .collect(Collectors.toList());
-            System.out.println("Found " + members.size() + " members");
 
-            // Get current meeting submissions with votes, sorted by votes
+            // Get fresh presigned URL for group image
+            if (group.getSettings() != null && group.getSettings().getGroupImageUrl() != null) {
+                String freshUrl = s3Service.getPresignedUrl(group.getSettings().getGroupImageUrl());
+                group.getSettings().setGroupImageUrl(freshUrl);
+            }
+
+            // Get current meeting submissions
             List<BirdSubmission> currentSubmissions = birdSubmissionRepository
-                .findByGroupAndStatusOrderByVotesDescSubmittedAtDesc(group, "ACTIVE");
-            model.addAttribute("currentSubmissions", currentSubmissions);
+                .findByGroupAndStatusInOrderByVotesDescSubmittedAtDesc(group, List.of("ACTIVE", "WINNER"));
 
-            // Check if user has voted (only for members)
-            if (currentUser != null && isMember) {
-                boolean hasVoted = currentSubmissions.stream()
-                    .anyMatch(sub -> sub.getVotedBy().contains(currentUser));
-                model.addAttribute("hasVoted", hasVoted);
-            }
-
-            // Get user's birds if they're a member
-            if (isMember && currentUser != null) {
-                // Check if user has already submitted
-                boolean hasSubmitted = currentSubmissions.stream()
-                    .anyMatch(sub -> sub.getSubmittedBy().getId().equals(currentUser.getId()));
-                model.addAttribute("hasSubmitted", hasSubmitted);
-
-                // Only show birds if user hasn't submitted yet
-                if (!hasSubmitted) {
-                    List<BirdEntity> userBirds = birdRepository.findByUploadedByOrderByUploadedAtDesc(currentUser);
-                    model.addAttribute("userBirds", userBirds);
+            // Get fresh presigned URLs for all submission images
+            for (BirdSubmission submission : currentSubmissions) {
+                if (submission.getImageUrl() != null) {
+                    String freshUrl = s3Service.getPresignedUrl(submission.getImageUrl());
+                    submission.setImageUrl(freshUrl);
                 }
             }
-                
-            // Add attributes to model
+
+            // Check if current user has voted for each submission
+            if (currentUser != null) {
+                for (BirdSubmission submission : currentSubmissions) {
+                    boolean hasVoted = submission.getVotedBy().contains(currentUser);
+                    submission.setHasVoted(hasVoted);
+                }
+            }
+
+            // Get Big Bird from previous meeting
+            List<BirdSubmission> bigBirdSubmissions = birdSubmissionRepository
+                .findByGroupAndStatusAndIsBigBirdTrueOrderBySubmittedAtDesc(group, "WINNER");
+            BirdSubmission bigBird = bigBirdSubmissions.isEmpty() ? null : bigBirdSubmissions.get(0);
+
+            // Get fresh presigned URL for Big Bird image
+            if (bigBird != null && bigBird.getImageUrl() != null) {
+                String freshUrl = s3Service.getPresignedUrl(bigBird.getImageUrl());
+                bigBird.setImageUrl(freshUrl);
+            }
+
+            // Get active group members only
+            List<GroupMember> members = groupMemberRepository.findByGroupAndStatus(group, "ACTIVE");
+
+            // Get user's submissions for this group
+            Optional<BirdSubmission> userSubmission = birdSubmissionRepository
+                .findByGroupAndStatusAndSubmittedBy(group, "ACTIVE", currentUser);
+            List<BirdSubmission> userSubmissions = userSubmission.map(List::of).orElse(List.of());
+
+            // Get user's birds
+            List<BirdEntity> userBirds = birdRepository.findByUploadedByOrderByUploadedAtDesc(currentUser);
+
+            // Get fresh presigned URLs for all user bird images
+            for (BirdEntity bird : userBirds) {
+                if (bird.getImageUrl() != null) {
+                    // Only generate a new presigned URL if it's not already a full URL
+                    if (!bird.getImageUrl().startsWith("http")) {
+                    String freshUrl = s3Service.getPresignedUrl(bird.getImageUrl());
+                    bird.setImageUrl(freshUrl);
+                    }
+                }
+            }
+
             model.addAttribute("group", group);
+            model.addAttribute("currentSubmissions", currentSubmissions);
+            model.addAttribute("bigBird", bigBird);
             model.addAttribute("members", members);
-            
-            System.out.println("Rendering group home page with theme: " + group.getSettings().getTheme());
+            model.addAttribute("userSubmissions", userSubmissions);
+            model.addAttribute("userBirds", userBirds);
+            model.addAttribute("isMember", groupMemberRepository.findByUserAndGroupAndStatus(currentUser, group, "ACTIVE").isPresent());
+
             return "groups/groupHome";
-            
+
         } catch (Exception e) {
-            System.err.println("Error loading group: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
+            model.addAttribute("error", "Failed to load group: " + e.getMessage());
+            return "error";
         }
     }
 
@@ -243,8 +261,8 @@ public class GroupController {
             .orElseThrow(() -> new RuntimeException("Group not found"));
         System.out.println("Found group: " + group.getName());
         
-        List<GroupMember> groupMembers = group.getMembers();
-        System.out.println("Number of group members: " + groupMembers.size());
+        List<GroupMember> groupMembers = groupMemberRepository.findByGroupAndStatus(group, "ACTIVE");
+        System.out.println("Number of active group members: " + groupMembers.size());
         
         List<UserEntity> members = groupMembers.stream()
             .map(GroupMember::getUser)
@@ -274,8 +292,23 @@ public class GroupController {
     public String showCreateForm(Model model) {
         GroupEntity group = new GroupEntity();
         GroupSettings settings = new GroupSettings();
+        settings.setTheme("forest"); // Set default theme
+        settings.setVisibilityType(VisibilityType.PUBLIC);
+        settings.setMeetingFrequency(MeetingFrequency.WEEKLY);
+        settings.setSeasonalActivity(Season.SPRING);
+        settings.setPhotoSharingEnabled(true);
+        settings.setGuestViewersAllowed(true);
+        settings.setVerificationRequired(false);
+        settings.setAutoApproveMembership(true);
         group.setSettings(settings);
+        
+        // Add all necessary options to the model
         model.addAttribute("group", group);
+        model.addAttribute("regions", List.of("Pacific Northwest", "Northeast", "Midwest", "Southwest", "Southeast"));
+        model.addAttribute("visibilityTypes", VisibilityType.values());
+        model.addAttribute("frequencies", MeetingFrequency.values());
+        model.addAttribute("seasons", Season.values());
+        
         return "groups/create";
     }
 
@@ -285,9 +318,16 @@ public class GroupController {
             BindingResult result,
             @AuthenticationPrincipal UserEntity currentUser,
             @RequestParam(value = "groupImage", required = false) MultipartFile groupImage,
-            RedirectAttributes redirectAttributes) {
+            RedirectAttributes redirectAttributes,
+            Model model) {
         
         if (result.hasErrors()) {
+            System.out.println("Form validation errors: " + result.getAllErrors());
+            // Re-add the regions and other options to the model
+            model.addAttribute("regions", List.of("Pacific Northwest", "Northeast", "Midwest", "Southwest", "Southeast"));
+            model.addAttribute("visibilityTypes", VisibilityType.values());
+            model.addAttribute("frequencies", MeetingFrequency.values());
+            model.addAttribute("seasons", Season.values());
             return "groups/create";
         }
 
@@ -301,14 +341,34 @@ public class GroupController {
 
             // Initialize settings if not set
             if (group.getSettings() == null) {
-                group.setSettings(new GroupSettings());
+                GroupSettings settings = new GroupSettings();
+                settings.setTheme("forest");
+                settings.setVisibilityType(VisibilityType.PUBLIC);
+                settings.setMeetingFrequency(MeetingFrequency.WEEKLY);
+                settings.setSeasonalActivity(Season.SPRING);
+                settings.setPhotoSharingEnabled(true);
+                settings.setGuestViewersAllowed(true);
+                settings.setVerificationRequired(false);
+                settings.setAutoApproveMembership(true);
+                group.setSettings(settings);
+            }
+
+            // Validate settings
+            if (group.getSettings().getRegion() == null || group.getSettings().getRegion().trim().isEmpty()) {
+                result.rejectValue("settings.region", "error.group", "Region is required");
+                model.addAttribute("regions", List.of("Pacific Northwest", "Northeast", "Midwest", "Southwest", "Southeast"));
+                model.addAttribute("visibilityTypes", VisibilityType.values());
+                model.addAttribute("frequencies", MeetingFrequency.values());
+                model.addAttribute("seasons", Season.values());
+                return "groups/create";
             }
 
             // Handle image upload if provided
             if (groupImage != null && !groupImage.isEmpty()) {
                 try {
-                    String imageUrl = s3Service.uploadFile(groupImage);
-                    group.getSettings().setGroupImageUrl(imageUrl);
+                    String fileKey = s3Service.uploadFile(groupImage);
+                    String presignedUrl = s3Service.getPresignedUrl(fileKey);
+                    group.getSettings().setGroupImageUrl(presignedUrl);
                 } catch (IOException e) {
                     redirectAttributes.addFlashAttribute("error", "Failed to upload image: " + e.getMessage());
                     return "redirect:/groups/create";
@@ -330,7 +390,14 @@ public class GroupController {
             return "redirect:/groups/" + savedGroup.getId();
 
         } catch (Exception e) {
-            result.rejectValue("name", "error.group", "An error occurred while creating the group");
+            System.out.println("Error creating group: " + e.getMessage());
+            e.printStackTrace();
+            result.rejectValue("name", "error.group", "An error occurred while creating the group: " + e.getMessage());
+            // Re-add the regions and other options to the model
+            model.addAttribute("regions", List.of("Pacific Northwest", "Northeast", "Midwest", "Southwest", "Southeast"));
+            model.addAttribute("visibilityTypes", VisibilityType.values());
+            model.addAttribute("frequencies", MeetingFrequency.values());
+            model.addAttribute("seasons", Season.values());
             return "groups/create";
         }
     }
@@ -343,8 +410,9 @@ public class GroupController {
             GroupEntity group = groupRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
-            // Check if user is already a member
-            if (groupMemberRepository.findByUserAndGroup(currentUser, group).isPresent()) {
+            // Check if user is already an active member
+            Optional<GroupMember> existingMembership = groupMemberRepository.findByUserAndGroupAndStatus(currentUser, group, "ACTIVE");
+            if (existingMembership.isPresent()) {
                 redirectAttributes.addFlashAttribute("error", "You are already a member of this group");
                 return "redirect:/groups/" + id;
             }
@@ -360,18 +428,31 @@ public class GroupController {
                 return "redirect:/groups/" + id;
             }
 
-            // Create new membership
-            GroupMember membership = new GroupMember();
-            membership.setGroup(group);
-            membership.setUser(currentUser);
-            membership.setJoinedAt(LocalDateTime.now());
-            membership.setRole("MEMBER");
-            membership.setStatus("ACTIVE");
+            // Check for existing pending membership
+            Optional<GroupMember> pendingMembership = groupMemberRepository.findByUserAndGroupAndStatus(currentUser, group, "PENDING");
+            GroupMember membership;
+            
+            if (pendingMembership.isPresent()) {
+                // Update existing pending membership to active
+                membership = pendingMembership.get();
+                membership.setStatus("ACTIVE");
+            } else {
+                // Create new membership
+                membership = new GroupMember();
+                membership.setGroup(group);
+                membership.setUser(currentUser);
+                membership.setJoinedAt(LocalDateTime.now());
+                membership.setRole("MEMBER");
+                membership.setStatus("ACTIVE");
+            }
+            
             groupMemberRepository.save(membership);
 
-            // Update group member count
-            group.setMemberCount(group.getMemberCount() + 1);
-            groupRepository.save(group);
+            // Update group member count only if this is a new active member
+            if (!pendingMembership.isPresent()) {
+                group.setMemberCount(group.getMemberCount() + 1);
+                groupRepository.save(group);
+            }
 
             redirectAttributes.addFlashAttribute("message", "Successfully joined the group!");
             return "redirect:/groups/" + id;
@@ -416,8 +497,9 @@ public class GroupController {
             // Handle image upload if provided
             if (groupImage != null && !groupImage.isEmpty()) {
                 try {
-                    String imageUrl = s3Service.uploadFile(groupImage);
-                    group.getSettings().setGroupImageUrl(imageUrl);
+                    String fileKey = s3Service.uploadFile(groupImage);
+                    String presignedUrl = s3Service.getPresignedUrl(fileKey);
+                    group.getSettings().setGroupImageUrl(presignedUrl);
                 } catch (IOException e) {
                     redirectAttributes.addFlashAttribute("error", "Failed to upload image: " + e.getMessage());
                     return "redirect:/groups/" + id;
@@ -487,14 +569,14 @@ public class GroupController {
                 return "redirect:/groups/" + id;
             }
 
-            // Upload image to S3
-            String imageUrl = s3Service.uploadFile(birdImage);
+            // Upload image to S3 and get file key
+            String fileKey = s3Service.uploadFile(birdImage);
 
             // Create bird submission
             BirdSubmission submission = new BirdSubmission();
             submission.setGroup(group);
             submission.setSubmittedBy(currentUser);
-            submission.setImageUrl(imageUrl);
+            submission.setImageUrl(fileKey); // Store just the file key
             submission.setSubmittedAt(LocalDateTime.now());
             submission.setStatus("ACTIVE");
             submission.setVotes(0);
@@ -506,7 +588,7 @@ public class GroupController {
                 currentUser, 
                 group,
                 birdName.trim(), 
-                "/groups/" + id
+                fileKey
             );
 
             redirectAttributes.addFlashAttribute("message", "Bird successfully submitted! 🐦");
@@ -519,6 +601,7 @@ public class GroupController {
     }
 
     @GetMapping("/{id}/submit-bird")
+    @Transactional
     public String submitExistingBird(
             @PathVariable Long id,
             @RequestParam Long birdId,
@@ -529,39 +612,39 @@ public class GroupController {
             GroupEntity group = groupRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
-            // Verify user is a member
-            if (!groupMemberRepository.findByUserAndGroup(currentUser, group).isPresent()) {
+            // Check if user is a member
+            if (!groupMemberRepository.findByUserAndGroupAndStatus(currentUser, group, "ACTIVE").isPresent()) {
                 redirectAttributes.addFlashAttribute("error", "You must be a member to submit birds");
                 return "redirect:/groups/" + id;
             }
 
-            // Check if user has already submitted
-            boolean hasSubmitted = birdSubmissionRepository
-                .findByGroupAndStatusAndSubmittedBy(group, "ACTIVE", currentUser)
-                .isPresent();
-            if (hasSubmitted) {
-                redirectAttributes.addFlashAttribute("error", "You have already submitted a bird to this meeting");
+            // Check if user has already submitted a bird
+            Optional<BirdSubmission> existingSubmission = birdSubmissionRepository
+                .findByGroupAndStatusAndSubmittedBy(group, "ACTIVE", currentUser);
+            if (existingSubmission.isPresent()) {
+                redirectAttributes.addFlashAttribute("error", "You have already submitted a bird for this meeting");
                 return "redirect:/groups/" + id;
             }
 
-            // Get the bird and verify ownership
+            // Get the bird
             BirdEntity bird = birdRepository.findById(birdId)
                 .orElseThrow(() -> new RuntimeException("Bird not found"));
-            
+
+            // Verify the bird belongs to the user
             if (!bird.getUploadedBy().getId().equals(currentUser.getId())) {
                 redirectAttributes.addFlashAttribute("error", "You can only submit your own birds");
                 return "redirect:/groups/" + id;
             }
 
-            // Create bird submission
+            // Create submission
             BirdSubmission submission = new BirdSubmission();
             submission.setGroup(group);
             submission.setSubmittedBy(currentUser);
-            submission.setImageUrl(bird.getImageUrl());
+            submission.setImageUrl(bird.getImageUrl()); // Store the file key
+            submission.setBirdName(bird.getName());
             submission.setSubmittedAt(LocalDateTime.now());
             submission.setStatus("ACTIVE");
             submission.setVotes(0);
-            submission.setBirdName(bird.getName());
             birdSubmissionRepository.save(submission);
 
             // Track the activity
@@ -569,10 +652,10 @@ public class GroupController {
                 currentUser, 
                 group,
                 bird.getName(), 
-                "/groups/" + id
+                bird.getImageUrl()
             );
 
-            redirectAttributes.addFlashAttribute("message", "Bird successfully submitted!");
+            redirectAttributes.addFlashAttribute("message", "Bird successfully submitted! 🐦");
             return "redirect:/groups/" + id;
 
         } catch (Exception e) {
@@ -661,6 +744,27 @@ public class GroupController {
             // Add vote
             submission.getVotedBy().add(currentUser);
             submission.setVotes(submission.getVotes() + 1);
+            
+            // Check if this submission is now the winner (has the most votes)
+            List<BirdSubmission> currentSubmissions = birdSubmissionRepository
+                .findByGroupAndStatusOrderByVotesDescSubmittedAtDesc(group, "ACTIVE");
+            
+            if (!currentSubmissions.isEmpty() && currentSubmissions.get(0).getId().equals(submissionId)) {
+                // This submission is now the winner
+                submission.setStatus("WINNER");
+                
+                // Mark all other submissions as archived
+                currentSubmissions.stream()
+                    .filter(sub -> !sub.getId().equals(submissionId))
+                    .forEach(sub -> {
+                        sub.setStatus("ARCHIVED");
+                        birdSubmissionRepository.save(sub);
+                    });
+                
+                // Set this submission as the Big Bird for the next meeting
+                submission.setBigBird(true);
+            }
+            
             birdSubmissionRepository.save(submission);
 
             redirectAttributes.addFlashAttribute("message", "Vote recorded successfully!");

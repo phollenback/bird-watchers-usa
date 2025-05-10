@@ -2,6 +2,8 @@ package com.birds.bird_app.service;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +30,7 @@ public class S3Service {
     private final String bucketName;
     private final String accessKey;
     private final String secretKey;
+    private final Map<String, String> fileKeyToUrl = new HashMap<>();
 
     @Autowired
     public S3Service(S3Client s3Client, 
@@ -42,50 +45,76 @@ public class S3Service {
     }
 
     public String uploadFile(MultipartFile file) throws IOException {
-        if (file == null || file.isEmpty()) {
-            logger.warn("Attempted to upload null or empty file");
+        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        return uploadFile(file, fileName);
+    }
+
+    public String uploadFile(MultipartFile file, String fileName) throws IOException {
+        logger.info("Uploading file: {} to S3 bucket: {}", fileName, bucketName);
+        
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+            .bucket(bucketName)
+            .key(fileName)
+            .contentType(file.getContentType())
+            .build();
+
+        s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        logger.info("File successfully uploaded to S3");
+        return fileName; // Return just the file key
+    }
+
+    public String getPresignedUrl(String fileKey) {
+        if (fileKey == null) {
             return null;
         }
 
-        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        logger.info("Preparing to upload file: {} to S3 bucket: {}", fileName, bucketName);
-        
-        try {
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(fileName)
-                .contentType(file.getContentType())
-                .build();
-
-            logger.info("Uploading file to S3...");
-            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
-            logger.info("File successfully uploaded to S3");
-
-            // Generate a presigned URL that expires in 7 days
-            logger.info("Generating presigned URL for file: {}", fileName);
-            AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKey, secretKey);
-            S3Presigner presigner = S3Presigner.builder()
-                .region(Region.US_WEST_2)
-                .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
-                .build();
-
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                .bucket(bucketName)
-                .key(fileName)
-                .build();
-
-            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofDays(7))
-                .getObjectRequest(getObjectRequest)
-                .build();
-
-            String presignedUrl = presigner.presignGetObject(presignRequest).url().toString();
-            logger.info("Generated presigned URL: {}", presignedUrl);
-            return presignedUrl;
-            
-        } catch (Exception e) {
-            logger.error("Error uploading file to S3: {}", e.getMessage(), e);
-            throw e;
+        // Extract the file key if a full URL is provided
+        if (fileKey.startsWith("http")) {
+            String[] parts = fileKey.split("/");
+            fileKey = parts[parts.length - 1];
+            // Remove any query parameters
+            if (fileKey.contains("?")) {
+                fileKey = fileKey.substring(0, fileKey.indexOf("?"));
+            }
         }
+
+        // Check cache first
+        String cachedUrl = fileKeyToUrl.get(fileKey);
+        if (cachedUrl != null) {
+            return cachedUrl;
+        }
+
+        // Generate new presigned URL
+        try {
+            String presignedUrl = generatePresignedUrl(fileKey);
+            fileKeyToUrl.put(fileKey, presignedUrl);
+            return presignedUrl;
+        } catch (Exception e) {
+            logger.error("Error generating presigned URL for file: {}", fileKey, e);
+            return null;
+        }
+    }
+
+    private String generatePresignedUrl(String fileKey) {
+        logger.info("Generating presigned URL for file: {}", fileKey);
+        AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKey, secretKey);
+        S3Presigner presigner = S3Presigner.builder()
+            .region(Region.US_WEST_2)
+            .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
+            .build();
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+            .bucket(bucketName)
+            .key(fileKey)
+            .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofDays(7))
+            .getObjectRequest(getObjectRequest)
+            .build();
+
+        String presignedUrl = presigner.presignGetObject(presignRequest).url().toString();
+        logger.info("Generated presigned URL for file: {}", fileKey);
+        return presignedUrl;
     }
 } 
